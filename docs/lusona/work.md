@@ -1,0 +1,42 @@
+# Work queue
+
+States: Ideas → Ready → Doing → Review → Done. Prefer finishing active work before
+starting another item. Blockers or pending acceptance do not prevent independent authorized
+work when writers and unfinished changes remain safely separated.
+Rows are ordered by priority within each state.
+Blocked is a flag with a reason and next action, not a separate state.
+Explicit batch authorization may override scheduling defaults: safely deferred items release
+execution capacity while retaining their actual state and blocker. Completion requirements remain.
+
+## Active queue
+
+| Item / change | State | Completion condition | Current blocker or next action |
+| --- | --- | --- | --- |
+| [Preset durations, break choice, and break screen](specs/20261104-preset-durations-and-break-screen.md) | Review | AC1–AC12 met, tests green, inspected on the owner's desktop, owner accepts, pushed | Owner acceptance; decision on break screen before Start; push authority |
+
+## Icebox
+
+Parked outcomes are excluded from active planning and default batch selection. Move them
+back to Active queue only on explicit reactivation; retain their lifecycle state and links.
+
+| Item / change | State when parked | Completion condition | Parking reason / revisit condition |
+| --- | --- | --- | --- |
+
+No parked work.
+
+## Record keeping
+
+Every new spec requires a row; reconcile updates with the same item, preserving existing state,
+Icebox, and archived history. New drafts start Ideas; Ready requires accepted scope and criteria,
+explicit TDD, and no blocking definition questions. Planning alone never enters Doing.
+Direct work without a spec may remain untracked in notes; a follow-up it finds takes an Ideas row
+linking those notes. Explicit no-save/read-only restrictions
+and coordinator-only shared writes prevail.
+
+Keep one short row per open outcome across both sections. Agreement, optional execution steps, evidence,
+and one current handoff belong in the linked change record; preserve existing split ownership.
+Optional `notes/<change-slug>.md` holds durable findings without another owner; do not add
+activity logs or evidence paragraphs here. Before removing a completed row, preserve its
+completion condition and unique facts, write a compact entry in `history/YYYY-MM-week-NN.md`,
+and verify its evidence links. History owns archived state; reopened work returns here with
+a backlink to its historical completion entry.

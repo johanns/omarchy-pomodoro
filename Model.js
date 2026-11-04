@@ -1,23 +1,26 @@
 // Pure logic for the Pomodoro plugin. No QML or Quickshell imports, so the
 // same file runs under node for Model.test.js.
 
-const PHASES = ["focus", "shortBreak", "longBreak"]
+const PHASES = ["focus", "break"]
+const FOCUS_PRESETS = [15, 25, 50, 90]
+const DEFAULT_FOCUS = 25
+const BREAK_LENGTHS = { short: 5, long: 15 }
+const DEFAULT_BREAK = "short"
 
-const LIMITS = {
-  focusMinutes: { min: 1, max: 180, fallback: 25 },
-  shortBreakMinutes: { min: 1, max: 60, fallback: 5 },
-  longBreakMinutes: { min: 1, max: 120, fallback: 15 },
-  sessionsBeforeLongBreak: { min: 1, max: 12, fallback: 4 }
-}
+const MINUTE_MS = 60000
+const EXTEND_MS = 5 * MINUTE_MS
+// The most time any phase may have left, also the bound on restored state.
+const MAX_REMAINING_MS = 180 * MINUTE_MS
+const MAX_COMPLETED = 100000
 
-// The most any phase can last, used to bound a restored remaining time
-// before the real settings arrive from the bar entry.
-const MAX_PHASE_MS = LIMITS.focusMinutes.max * 60000
+const STATE_VERSION = 2
 
-const clampInt = (value, min, max, fallback) => {
+// Any number snaps to the closest preset, a tie to the lower one (20 -> 15,
+// 70 -> 50); anything else is the default.
+function nearestPreset(value) {
   const n = Number(value)
-  if (!Number.isFinite(n)) return fallback
-  return Math.min(max, Math.max(min, Math.round(n)))
+  if (!Number.isFinite(n)) return DEFAULT_FOCUS
+  return FOCUS_PRESETS.reduce((best, p) => Math.abs(p - n) < Math.abs(best - n) ? p : best, FOCUS_PRESETS[0])
 }
 
 const asBool = (value, fallback) => {
@@ -27,55 +30,64 @@ const asBool = (value, fallback) => {
   return fallback
 }
 
-// Settings come from shell.json and are untrusted: every value is bounded
-// and typed here before anything reads it.
-function normalizeSettings(raw) {
-  const s = raw && typeof raw === "object" ? raw : {}
-  const out = {}
-  for (const [key, limit] of Object.entries(LIMITS))
-    out[key] = clampInt(s[key], limit.min, limit.max, limit.fallback)
-  out.autoStartBreaks = asBool(s.autoStartBreaks, false)
-  out.autoStartFocus = asBool(s.autoStartFocus, false)
-  out.notify = asBool(s.notify, true)
-  return out
+const clampInt = (value, min, max, fallback) => {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(max, Math.max(min, Math.round(n)))
 }
-
-const isPhase = (value) => PHASES.includes(value)
-
-function phaseMinutes(phase, settings) {
-  if (phase === "shortBreak") return settings.shortBreakMinutes
-  if (phase === "longBreak") return settings.longBreakMinutes
-  return settings.focusMinutes
-}
-
-const phaseDurationMs = (phase, settings) => phaseMinutes(phase, settings) * 60000
-
-const isBreak = (phase) => phase === "shortBreak" || phase === "longBreak"
-
-// The phase that follows `phase`, and the completed-focus count after it.
-// Completed focus sessions count within the current cycle and wrap to zero
-// once the long break begins, so the dots in the panel always show
-// progress toward the next long break.
-function advance(phase, completedFocus, settings) {
-  let done = clampInt(completedFocus, 0, settings.sessionsBeforeLongBreak, 0)
-  if (phase === "focus") {
-    done += 1
-    if (done >= settings.sessionsBeforeLongBreak) return { phase: "longBreak", completedFocus: done }
-    return { phase: "shortBreak", completedFocus: done }
-  }
-  if (phase === "longBreak") return { phase: "focus", completedFocus: 0 }
-  return { phase: "focus", completedFocus: done }
-}
-
-// Whether the next phase should begin counting down on its own.
-const autoStarts = (nextPhase, settings) =>
-  isBreak(nextPhase) ? settings.autoStartBreaks : settings.autoStartFocus
 
 const clampMs = (ms, maxMs) => {
   const n = Number(ms)
   if (!Number.isFinite(n) || n < 0) return 0
   return Math.min(maxMs, Math.round(n))
 }
+
+// Settings come from shell.json and are untrusted: every value is bounded
+// and typed here before anything reads it. Keys from the first version
+// (shortBreakMinutes, longBreakMinutes, sessionsBeforeLongBreak,
+// autoStartBreaks, autoStartFocus) are ignored.
+function normalizeSettings(raw) {
+  const s = raw && typeof raw === "object" ? raw : {}
+  return {
+    focusMinutes: nearestPreset(s.focusMinutes),
+    breakLength: Object.prototype.hasOwnProperty.call(BREAK_LENGTHS, s.breakLength) ? s.breakLength : DEFAULT_BREAK,
+    notify: asBool(s.notify, true),
+    chime: asBool(s.chime, false),
+    breakScreen: asBool(s.breakScreen, false)
+  }
+}
+
+const isPhase = (value) => PHASES.includes(value)
+const isBreak = (phase) => phase === "break"
+
+function phaseMinutes(phase, settings) {
+  return isBreak(phase) ? BREAK_LENGTHS[settings.breakLength] : settings.focusMinutes
+}
+
+const phaseDurationMs = (phase, settings) => phaseMinutes(phase, settings) * MINUTE_MS
+
+// The phase that follows `phase`, and the completed-focus count after it.
+// Focus and break alternate; a finished focus session adds one to the count.
+function advance(phase, completedFocus) {
+  const done = clampInt(completedFocus, 0, MAX_COMPLETED, 0)
+  if (phase === "focus") return { phase: "break", completedFocus: Math.min(MAX_COMPLETED, done + 1) }
+  return { phase: "focus", completedFocus: done }
+}
+
+// Five more minutes on the current phase: remaining and duration both grow,
+// so progress keeps its meaning. Null when the result would pass the cap.
+function extend(remainingMs, durationMs) {
+  const remaining = clampMs(remainingMs, MAX_REMAINING_MS) + EXTEND_MS
+  if (remaining > MAX_REMAINING_MS) return null
+  return { remainingMs: remaining, durationMs: Math.min(MAX_REMAINING_MS, clampMs(durationMs, MAX_REMAINING_MS) + EXTEND_MS) }
+}
+
+const shouldChime = (settings) => settings.chime === true
+
+// The break screen shows while a break is running or paused, the toggle is
+// on, and the user has not hidden it for this break.
+const shouldShowBreakScreen = (phase, engaged, settings, hiddenForBreak) =>
+  isBreak(phase) && engaged === true && settings.breakScreen === true && hiddenForBreak !== true
 
 // Seconds still to go, rounded up so the display never shows 00:00 while
 // time remains.
@@ -112,29 +124,37 @@ const initialState = (settings) => ({
   phase: "focus",
   running: false,
   endsAt: 0,
+  durationMs: phaseDurationMs("focus", settings),
   remainingMs: phaseDurationMs("focus", settings),
   completedFocus: 0
 })
 
 function serializeState(state, now) {
   return JSON.stringify({
-    version: 1,
+    version: STATE_VERSION,
     phase: state.phase,
     running: state.running === true,
     endsAt: state.running ? Math.round(state.endsAt) : 0,
+    durationMs: Math.round(state.durationMs),
     remainingMs: Math.round(state.remainingMs),
     completedFocus: state.completedFocus,
     savedAt: Math.round(now)
   })
 }
 
+// A version 1 file (one break phase per length, no stored duration) maps onto
+// the version 2 shape; the duration comes from the current settings.
+function migrateV1(data, settings) {
+  const phase = data.phase === "shortBreak" || data.phase === "longBreak" ? "break" : data.phase
+  return Object.assign({}, data, { version: STATE_VERSION, phase: phase, durationMs: isPhase(phase) ? phaseDurationMs(phase, settings) : 0 })
+}
+
 // Restore a saved state, bounding every field. A running timer keeps its
 // absolute end time, so time spent with the shell down still counts; a
 // timer whose end has already passed comes back with zero remaining, and
-// the service completes it on its first tick. The remaining time is bounded
-// by the longest allowed phase rather than the current settings, because the
-// service restores before the widget has pushed them; onCfgChanged applies
-// the per-phase bound once they arrive.
+// the service completes it on its first tick. Remaining time is bounded by
+// the longest allowed phase rather than the current settings, because the
+// service restores before the widget has pushed them.
 function parseState(raw, settings, now) {
   const fresh = initialState(settings)
   let data
@@ -143,21 +163,29 @@ function parseState(raw, settings, now) {
   } catch (e) {
     return fresh
   }
-  if (!data || typeof data !== "object" || data.version !== 1) return fresh
+  if (!data || typeof data !== "object") return fresh
+  if (data.version === 1) data = migrateV1(data, settings)
+  if (data.version !== STATE_VERSION) return fresh
   if (!isPhase(data.phase)) return fresh
+  const durationMs = clampMs(data.durationMs, MAX_REMAINING_MS)
   const state = {
     phase: data.phase,
     running: data.running === true,
     endsAt: 0,
-    remainingMs: clampMs(data.remainingMs, MAX_PHASE_MS),
-    completedFocus: clampInt(data.completedFocus, 0, settings.sessionsBeforeLongBreak, 0)
+    durationMs: durationMs > 0 ? durationMs : phaseDurationMs(data.phase, settings),
+    remainingMs: clampMs(data.remainingMs, MAX_REMAINING_MS),
+    completedFocus: clampInt(data.completedFocus, 0, MAX_COMPLETED, 0)
   }
   if (state.running) {
     const endsAt = Number(data.endsAt)
-    if (!Number.isFinite(endsAt) || endsAt <= 0) return fresh
+    if (!Number.isFinite(endsAt) || endsAt <= 0 || endsAt - now > MAX_REMAINING_MS) return fresh
     state.endsAt = endsAt
-    state.remainingMs = clampMs(endsAt - now, MAX_PHASE_MS)
+    state.remainingMs = clampMs(endsAt - now, MAX_REMAINING_MS)
   }
+  // A phase never has more left than it lasts: a version 1 file, or one
+  // saved under a longer preset, keeps its remaining time and grows the
+  // duration to match, so paused and progress stay meaningful.
+  state.durationMs = Math.max(state.durationMs, state.remainingMs)
   return state
 }
 

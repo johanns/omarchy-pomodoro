@@ -39,14 +39,15 @@ Panel {
     : (paused ? strings.t("tooltip.paused").arg(phaseTitle).arg(clockText)
       : strings.t("tooltip.idle").arg(phaseTitle))
 
-  // Keyboard cursor over the panel's controls, top to bottom. The three
-  // action buttons share the first row and are walked with Left/Right.
-  readonly property var controls: [
-    "start", "reset", "skip",
-    "focusMinutes", "shortBreakMinutes", "longBreakMinutes", "sessionsBeforeLongBreak",
-    "autoStartBreaks", "autoStartFocus", "notify"
-  ]
-  property int cursor: 0
+  readonly property var focusOptions: Model.FOCUS_PRESETS
+  readonly property var breakOptions: Object.keys(Model.BREAK_LENGTHS)
+
+  // Keyboard cursor: a row name and a column inside it. Rows run top to
+  // bottom; Left/Right walks the chips of the actions, Focus and Break rows.
+  readonly property var rows: ["actions", "focus", "break", "notify", "chime", "breakScreen"]
+  readonly property var rowWidths: ({ actions: 3, focus: focusOptions.length, break: breakOptions.length, notify: 1, chime: 1, breakScreen: 1 })
+  property string row: "actions"
+  property int col: 0
   property bool cursorActive: false
 
   Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
@@ -66,46 +67,59 @@ Panel {
   function toggleTimer() { if (service) service.toggle() }
   function resetTimer() { if (service) service.reset() }
   function skipPhase() { if (service) service.skip() }
+  function stopPhase() { if (service) service.stop() }
+  function extendPhase() { if (service) service.extend() }
+  function hideBreakScreen() { if (service) service.hideBreakScreen() }
+  function resetCount() { if (service) service.resetCount() }
 
+  // Writes carry only the keys this version knows, so obsolete ones from
+  // version 1.0 drop out of the bar entry on the first change.
   function updateSetting(key, value) {
     const entry = { id: root.moduleName }
-    for (const k of Object.keys(root.settings)) if (k !== "id") entry[k] = root.settings[k]
+    for (const k of Object.keys(root.cfg)) if (k in root.settings) entry[k] = root.settings[k]
     entry[key] = value
     root.settings = entry
     if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
       root.bar.shell.updateEntryInline(root.moduleName, entry)
   }
 
-  function controlAt(index) {
-    return root.controls[Math.max(0, Math.min(root.controls.length - 1, index))]
+  function breakLabel(value) {
+    return strings.t(value === "long" ? "break.long" : "break.short").arg(Commons.I18n.formatNumber(Model.BREAK_LENGTHS[value]))
+  }
+
+  function placeCursor(nextRow, nextCol) {
+    cursorActive = true
+    row = nextRow
+    col = Math.max(0, Math.min(rowWidths[nextRow] - 1, nextCol))
   }
 
   function moveCursor(dx, dy) {
     if (!cursorActive) { cursorActive = true; return }
-    const id = controlAt(cursor)
     if (dy !== 0) {
-      if (cursor < 3) cursor = dy > 0 ? 3 : cursor
-      else if (cursor === 3 && dy < 0) cursor = 0
-      else cursor = Math.max(0, Math.min(controls.length - 1, cursor + dy))
+      const index = Math.max(0, Math.min(rows.length - 1, rows.indexOf(row) + dy))
+      // Landing on a chip row keeps the current choice under the cursor.
+      const next = rows[index]
+      let landing = 0
+      if (next === "focus") landing = focusOptions.indexOf(cfg.focusMinutes)
+      else if (next === "break") landing = breakOptions.indexOf(cfg.breakLength)
+      placeCursor(next, next === row ? col : landing)
       return
     }
-    if (cursor < 3) {
-      cursor = Math.max(0, Math.min(2, cursor + dx))
-      return
-    }
-    if (Model.LIMITS[id]) {
-      const limit = Model.LIMITS[id]
-      updateSetting(id, Math.max(limit.min, Math.min(limit.max, cfg[id] + dx)))
-    }
+    placeCursor(row, col + dx)
   }
 
+  // Enter or Space before the cursor is placed acts on the first control,
+  // which is what the key hint promises.
   function activateCursor() {
-    if (!cursorActive) return
-    const id = controlAt(cursor)
-    if (id === "start") toggleTimer()
-    else if (id === "reset") resetTimer()
-    else if (id === "skip") skipPhase()
-    else if (id === "autoStartBreaks" || id === "autoStartFocus" || id === "notify") updateSetting(id, !cfg[id])
+    if (!cursorActive) { toggleTimer(); return }
+    if (row === "actions") {
+      if (col === 0) toggleTimer()
+      else if (col === 1) resetTimer()
+      else skipPhase()
+    }
+    else if (row === "focus") updateSetting("focusMinutes", focusOptions[col])
+    else if (row === "break") updateSetting("breakLength", breakOptions[col])
+    else updateSetting(row, !cfg[row])
   }
 
   function handleTextKey(text) {
@@ -116,7 +130,7 @@ Panel {
   onSettingsChanged: pushSettings()
   onServiceChanged: pushSettings()
   Component.onCompleted: pushSettings()
-  onOpenedChanged: if (opened) { cursorActive = false; cursor = 0 }
+  onOpenedChanged: if (opened) { cursorActive = false; row = "actions"; col = 0 }
 
   ShellIpc {
     target: "jg.pomodoro"
@@ -131,6 +145,10 @@ Panel {
     function toggleTimer(): void { root.toggleTimer() }
     function reset(): void { root.resetTimer() }
     function skip(): void { root.skipPhase() }
+    function stop(): void { root.stopPhase() }
+    function extend(): void { root.extendPhase() }
+    function hideBreakScreen(): void { root.hideBreakScreen() }
+    function resetCount(): void { root.resetCount() }
     function status(): string { return root.service ? root.service.statusText() : "{}" }
   }
 
@@ -181,6 +199,38 @@ Panel {
     }
   }
 
+  // A row of equal-width chips; `selected` marks the current value, the
+  // cursor follows the panel's row/col state.
+  component ChipRow: Row {
+    id: chipRow
+    property var values: []
+    property var labels: []
+    property string rowName: ""
+    property string current: ""
+    signal picked(int index)
+    width: parent.width
+    spacing: Style.space(6)
+    readonly property real cellWidth: values.length > 0 ? (width - spacing * (values.length - 1)) / values.length : 0
+
+    Repeater {
+      model: chipRow.values
+      Button {
+        required property var modelData
+        required property int index
+        width: chipRow.cellWidth
+        text: chipRow.labels[index]
+        foreground: root.bar.foreground
+        fontFamily: root.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        selected: String(modelData) === chipRow.current
+        hasCursor: root.cursorActive && root.row === chipRow.rowName && root.col === index
+        onClicked: chipRow.picked(index)
+        onHovered: (h) => { if (h) root.placeCursor(chipRow.rowName, index) }
+      }
+    }
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: button
@@ -195,8 +245,6 @@ Panel {
       id: keyCatcher
       anchors.fill: parent
       implicitHeight: column.implicitHeight
-      blocked: focusField.field.activeFocus || shortField.field.activeFocus
-        || longField.field.activeFocus || sessionsField.field.activeFocus
       onMoveRequested: (dx, dy) => root.moveCursor(dx, dy)
       onActivateRequested: root.activateCursor()
       onCloseRequested: root.close()
@@ -210,26 +258,14 @@ Panel {
         anchors.top: parent.top
         spacing: Style.space(14)
 
-        // ---------- Hero: phase glyph · phase/status · countdown ----------
+        // ---------- Hero: phase and status · countdown ----------
         Item {
           width: parent.width
-          implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight, heroClock.implicitHeight)
-
-          Text {
-            id: heroIcon
-            textFormat: Text.PlainText
-            text: root.phaseGlyph
-            color: root.bar.foreground
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.display
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-          }
+          implicitHeight: Math.max(heroLabels.implicitHeight, heroClock.implicitHeight)
 
           Column {
             id: heroLabels
-            anchors.left: heroIcon.right
-            anchors.leftMargin: Style.space(14)
+            anchors.left: parent.left
             anchors.right: heroClock.left
             anchors.rightMargin: Style.space(10)
             anchors.verticalCenter: parent.verticalCenter
@@ -298,40 +334,15 @@ Panel {
           }
         }
 
-        // ---------- Sessions toward the long break ----------
-        Row {
+        // ---------- Sessions done ----------
+        Text {
           width: parent.width
-          spacing: Style.space(10)
-
-          Row {
-            spacing: Style.space(6)
-            anchors.verticalCenter: parent.verticalCenter
-
-            Repeater {
-              model: root.cfg.sessionsBeforeLongBreak
-
-              Rectangle {
-                required property int index
-                width: Style.space(10)
-                height: width
-                radius: width / 2
-                color: root.bar.foreground
-                opacity: index < root.completedFocus ? 1 : 0.18
-                Behavior on opacity { NumberAnimation { duration: Style.duration(180); easing.type: Easing.OutCubic } }
-              }
-            }
-          }
-
-          Text {
-            textFormat: Text.PlainText
-            anchors.verticalCenter: parent.verticalCenter
-            text: strings.tn("sessions.completed", root.completedFocus)
-              .arg(Commons.I18n.formatNumber(root.completedFocus))
-              .arg(Commons.I18n.formatNumber(root.cfg.sessionsBeforeLongBreak))
-            color: Qt.darker(root.bar.foreground, 1.4)
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.bodySmall
-          }
+          textFormat: Text.PlainText
+          text: strings.tn("sessions.done", root.completedFocus).arg(Commons.I18n.formatNumber(root.completedFocus))
+          color: Qt.darker(root.bar.foreground, 1.4)
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          elide: Text.ElideRight
         }
 
         // ---------- Actions ----------
@@ -350,9 +361,9 @@ Panel {
             fontSize: Style.font.bodySmall
             bordered: true
             active: root.running
-            hasCursor: root.cursorActive && root.cursor === 0
+            hasCursor: root.cursorActive && root.row === "actions" && root.col === 0
             onClicked: root.toggleTimer()
-            onHovered: (h) => { if (h) { root.cursorActive = true; root.cursor = 0 } }
+            onHovered: (h) => { if (h) root.placeCursor("actions", 0) }
           }
 
           Button {
@@ -363,9 +374,9 @@ Panel {
             fontFamily: root.bar.fontFamily
             fontSize: Style.font.bodySmall
             bordered: true
-            hasCursor: root.cursorActive && root.cursor === 1
+            hasCursor: root.cursorActive && root.row === "actions" && root.col === 1
             onClicked: root.resetTimer()
-            onHovered: (h) => { if (h) { root.cursorActive = true; root.cursor = 1 } }
+            onHovered: (h) => { if (h) root.placeCursor("actions", 1) }
           }
 
           Button {
@@ -376,9 +387,9 @@ Panel {
             fontFamily: root.bar.fontFamily
             fontSize: Style.font.bodySmall
             bordered: true
-            hasCursor: root.cursorActive && root.cursor === 2
+            hasCursor: root.cursorActive && root.row === "actions" && root.col === 2
             onClicked: root.skipPhase()
-            onHovered: (h) => { if (h) { root.cursorActive = true; root.cursor = 2 } }
+            onHovered: (h) => { if (h) root.placeCursor("actions", 2) }
           }
         }
 
@@ -392,84 +403,46 @@ Panel {
           elide: Text.ElideRight
         }
 
-        // ---------- Durations ----------
+        // ---------- Focus length ----------
         PanelSeparator { foreground: root.bar.foreground }
 
         PanelSectionHeader {
-          text: strings.t("section.durations")
+          text: strings.t("section.focus")
           foreground: root.bar.foreground
           fontFamily: root.bar.fontFamily
         }
 
-        // Two equal columns; each field stretches to its column so the four
-        // controls fill the panel width edge to edge.
-        Grid {
-          id: durationsGrid
+        ChipRow {
+          rowName: "focus"
+          values: root.focusOptions
+          labels: root.focusOptions.map((m) => Commons.I18n.formatNumber(m))
+          current: String(root.cfg.focusMinutes)
+          onPicked: (index) => root.updateSetting("focusMinutes", root.focusOptions[index])
+        }
+
+        Text {
+          textFormat: Text.PlainText
           width: parent.width
-          columns: 2
-          columnSpacing: Style.space(12)
-          rowSpacing: Style.space(10)
-          readonly property real cellWidth: Math.floor((width - columnSpacing) / 2)
+          text: strings.t("focus.caption")
+          color: Qt.darker(root.bar.foreground, 1.6)
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WordWrap
+        }
 
-          NumberField {
-            id: focusField
-            width: durationsGrid.cellWidth
-            fieldWidth: durationsGrid.cellWidth
-            label: strings.t("setting.focusMinutes")
-            from: Model.LIMITS.focusMinutes.min
-            to: Model.LIMITS.focusMinutes.max
-            value: root.cfg.focusMinutes
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            hasCursor: root.cursorActive && root.cursor === 3
-            onModified: (v) => root.updateSetting("focusMinutes", v)
-            onHovered: (on) => { if (on) { root.cursorActive = true; root.cursor = 3 } }
-          }
+        // ---------- Break length ----------
+        PanelSectionHeader {
+          text: strings.t("section.break")
+          foreground: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+        }
 
-          NumberField {
-            id: shortField
-            width: durationsGrid.cellWidth
-            fieldWidth: durationsGrid.cellWidth
-            label: strings.t("setting.shortBreakMinutes")
-            from: Model.LIMITS.shortBreakMinutes.min
-            to: Model.LIMITS.shortBreakMinutes.max
-            value: root.cfg.shortBreakMinutes
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            hasCursor: root.cursorActive && root.cursor === 4
-            onModified: (v) => root.updateSetting("shortBreakMinutes", v)
-            onHovered: (on) => { if (on) { root.cursorActive = true; root.cursor = 4 } }
-          }
-
-          NumberField {
-            id: longField
-            width: durationsGrid.cellWidth
-            fieldWidth: durationsGrid.cellWidth
-            label: strings.t("setting.longBreakMinutes")
-            from: Model.LIMITS.longBreakMinutes.min
-            to: Model.LIMITS.longBreakMinutes.max
-            value: root.cfg.longBreakMinutes
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            hasCursor: root.cursorActive && root.cursor === 5
-            onModified: (v) => root.updateSetting("longBreakMinutes", v)
-            onHovered: (on) => { if (on) { root.cursorActive = true; root.cursor = 5 } }
-          }
-
-          NumberField {
-            id: sessionsField
-            width: durationsGrid.cellWidth
-            fieldWidth: durationsGrid.cellWidth
-            label: strings.t("setting.sessionsBeforeLongBreak")
-            from: Model.LIMITS.sessionsBeforeLongBreak.min
-            to: Model.LIMITS.sessionsBeforeLongBreak.max
-            value: root.cfg.sessionsBeforeLongBreak
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            hasCursor: root.cursorActive && root.cursor === 6
-            onModified: (v) => root.updateSetting("sessionsBeforeLongBreak", v)
-            onHovered: (on) => { if (on) { root.cursorActive = true; root.cursor = 6 } }
-          }
+        ChipRow {
+          rowName: "break"
+          values: root.breakOptions
+          labels: root.breakOptions.map((v) => root.breakLabel(v))
+          current: root.cfg.breakLength
+          onPicked: (index) => root.updateSetting("breakLength", root.breakOptions[index])
         }
 
         // ---------- Behavior ----------
@@ -485,40 +458,21 @@ Panel {
           width: parent.width
           spacing: Style.space(6)
 
-          Toggle {
-            width: parent.width
-            label: strings.t("setting.autoStartBreaks")
-            description: strings.t("setting.autoStartBreaks.description")
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            checked: root.cfg.autoStartBreaks
-            hasCursor: root.cursorActive && root.cursor === 7
-            onHovered: (h) => { if (h) { root.cursorActive = true; root.cursor = 7 } }
-            onClicked: root.updateSetting("autoStartBreaks", !root.cfg.autoStartBreaks)
-          }
+          Repeater {
+            model: ["notify", "chime", "breakScreen"]
 
-          Toggle {
-            width: parent.width
-            label: strings.t("setting.autoStartFocus")
-            description: strings.t("setting.autoStartFocus.description")
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            checked: root.cfg.autoStartFocus
-            hasCursor: root.cursorActive && root.cursor === 8
-            onHovered: (h) => { if (h) { root.cursorActive = true; root.cursor = 8 } }
-            onClicked: root.updateSetting("autoStartFocus", !root.cfg.autoStartFocus)
-          }
-
-          Toggle {
-            width: parent.width
-            label: strings.t("setting.notify")
-            description: strings.t("setting.notify.description")
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            checked: root.cfg.notify
-            hasCursor: root.cursorActive && root.cursor === 9
-            onHovered: (h) => { if (h) { root.cursorActive = true; root.cursor = 9 } }
-            onClicked: root.updateSetting("notify", !root.cfg.notify)
+            Toggle {
+              required property string modelData
+              width: parent.width
+              label: strings.t("setting." + modelData)
+              description: strings.t("setting." + modelData + ".description")
+              foreground: root.bar.foreground
+              fontFamily: root.bar.fontFamily
+              checked: root.cfg[modelData] === true
+              hasCursor: root.cursorActive && root.row === modelData
+              onHovered: (h) => { if (h) root.placeCursor(modelData, 0) }
+              onClicked: root.updateSetting(modelData, !root.cfg[modelData])
+            }
           }
         }
       }

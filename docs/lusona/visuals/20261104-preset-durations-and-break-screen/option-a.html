@@ -1,0 +1,1100 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>20261104-preset-durations-and-break-screen: Presets and break screen</title>
+        <style>
+            :root {
+                --canvas: #e8edf4;
+                --grid: rgba(37, 99, 217, 0.08);
+                --surface: #fff;
+                --raised: #f5f7fb;
+                --ink: #172131;
+                --muted: #566275;
+                --line: #c9d2de;
+                --accent: #2563d9;
+                --accent-ink: #fff;
+                --accent-soft: #e2ebfc;
+                --frame: #1d2026;
+                --draft: #8a5a00;
+                --draft-soft: #fdf0d5;
+                --chosen: #12784a;
+                --chosen-soft: #dcf2e6;
+                --diagram: #5b4bc9;
+                --diagram-soft: #ebe8fb;
+                --danger: #b42318;
+                --shadow:
+                    0 1px 2px rgba(23, 33, 49, 0.08),
+                    0 8px 24px rgba(23, 33, 49, 0.08);
+                color-scheme: light;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root:not([data-theme="light"]) {
+                    --canvas: #0d1726;
+                    --grid: rgba(111, 155, 255, 0.07);
+                    --surface: #14223a;
+                    --raised: #1a2b47;
+                    --ink: #e5ecf6;
+                    --muted: #97a5ba;
+                    --line: #2b3d5a;
+                    --accent: #78a2ff;
+                    --accent-ink: #0d1726;
+                    --accent-soft: #1d3358;
+                    --frame: #030508;
+                    --draft: #f0b748;
+                    --draft-soft: #3a2d12;
+                    --chosen: #4fcb8c;
+                    --chosen-soft: #123424;
+                    --diagram: #ab9fff;
+                    --diagram-soft: #29234f;
+                    --danger: #ff8a80;
+                    --shadow:
+                        0 1px 2px rgba(0, 0, 0, 0.4),
+                        0 8px 24px rgba(0, 0, 0, 0.35);
+                    color-scheme: dark;
+                }
+            }
+            :root[data-theme="dark"] {
+                --canvas: #0d1726;
+                --grid: rgba(111, 155, 255, 0.07);
+                --surface: #14223a;
+                --raised: #1a2b47;
+                --ink: #e5ecf6;
+                --muted: #97a5ba;
+                --line: #2b3d5a;
+                --accent: #78a2ff;
+                --accent-ink: #0d1726;
+                --accent-soft: #1d3358;
+                --frame: #030508;
+                --draft: #f0b748;
+                --draft-soft: #3a2d12;
+                --chosen: #4fcb8c;
+                --chosen-soft: #123424;
+                --diagram: #ab9fff;
+                --diagram-soft: #29234f;
+                --danger: #ff8a80;
+                --shadow:
+                    0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+                color-scheme: dark;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                height: 100%;
+            }
+            body {
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                background: var(--canvas);
+                color: var(--ink);
+                font:
+                    15px/1.5 system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    sans-serif;
+            }
+            a {
+                color: var(--accent);
+            }
+            :focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 2px;
+            }
+            [data-lv-hidden] {
+                display: none !important;
+            }
+            /* shell */
+            .lv-bar {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                padding: 14px 24px;
+                background: var(--surface);
+                border-bottom: 1px solid var(--line);
+            }
+            .lv-letter {
+                flex: none;
+                display: grid;
+                place-items: center;
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                background: var(--accent);
+                color: var(--accent-ink);
+                font-size: 22px;
+                font-weight: 700;
+            }
+            .lv-titles {
+                flex: 1;
+                min-width: 0;
+            }
+            .lv-meta {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px;
+                margin: 0 0 2px;
+                color: var(--muted);
+                font-size: 13px;
+            }
+            .lv-q {
+                margin: 0;
+                font-size: clamp(18px, 1.6vw, 24px);
+                line-height: 1.25;
+                font-weight: 650;
+            }
+            .lv-lede {
+                margin: 4px 0 0;
+                max-width: 80ch;
+                color: var(--muted);
+                font-size: 14px;
+            }
+            .lv-status {
+                padding: 1px 10px;
+                border-radius: 999px;
+                font-weight: 600;
+                font-size: 12px;
+            }
+            .lv-status.is-draft {
+                background: var(--draft-soft);
+                color: var(--draft);
+            }
+            .lv-status.is-index {
+                background: var(--accent-soft);
+                color: var(--accent);
+            }
+            .lv-status.is-chosen {
+                background: var(--chosen-soft);
+                color: var(--chosen);
+            }
+            .lv-tools {
+                display: flex;
+                gap: 8px;
+                flex: none;
+            }
+            .lv-tool {
+                border: 1px solid var(--line);
+                background: var(--raised);
+                color: var(--ink);
+                border-radius: 8px;
+                padding: 6px 12px;
+                font: inherit;
+                font-size: 13px;
+                cursor: pointer;
+            }
+            .lv-tool[aria-pressed="true"] {
+                background: var(--accent-soft);
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+            .lv-body {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+            }
+            .lv-stage {
+                flex: 1;
+                min-width: 0;
+                overflow: auto;
+                padding: 24px;
+                background-image:
+                    linear-gradient(var(--grid) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+                background-size: 24px 24px;
+            }
+            .lv-notes {
+                flex: none;
+                width: 300px;
+                overflow: auto;
+                padding: 20px;
+                background: var(--surface);
+                border-left: 1px solid var(--line);
+                font-size: 14px;
+            }
+            .lv-notes[hidden] {
+                display: none;
+            }
+            .lv-notes h2 {
+                margin: 0 0 8px;
+                font-size: 14px;
+            }
+            .lv-notes ul,
+            .lv-notes p {
+                margin: 0 0 20px;
+            }
+            .lv-notes ul {
+                padding-left: 18px;
+            }
+            .lv-notes li {
+                margin: 4px 0;
+            }
+            .lv-notes .is-binding li::marker {
+                color: var(--chosen);
+            }
+            .lv-notes .is-never li::marker {
+                color: var(--danger);
+            }
+            .lv-notes .is-fidelity p {
+                padding: 8px 12px;
+                border-radius: 8px;
+                background: var(--raised);
+                color: var(--muted);
+            }
+            .is-embedded .lv-bar,
+            .is-embedded .lv-notes {
+                display: none;
+            }
+            .is-embedded .lv-stage {
+                padding: 16px;
+            }
+            /* switches: index view, option, state */
+            .lv-switch {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 4px;
+                padding: 3px;
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                background: var(--raised);
+            }
+            .lv-switch > span {
+                padding: 0 8px;
+                color: var(--muted);
+                font-size: 13px;
+                font-weight: 600;
+            }
+            .lv-switch button {
+                border: 0;
+                background: none;
+                color: var(--muted);
+                border-radius: 7px;
+                padding: 5px 12px;
+                font: inherit;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .lv-switch button[aria-pressed="true"] {
+                background: var(--surface);
+                color: var(--accent);
+                box-shadow: var(--shadow);
+            }
+            .lv-rec,
+            .lv-switch button[data-recommended]::after {
+                margin-left: 6px;
+                padding: 1px 7px;
+                border-radius: 999px;
+                background: var(--chosen-soft);
+                color: var(--chosen);
+                font-size: 11px;
+                font-weight: 600;
+                font-style: normal;
+            }
+            .lv-switch button[data-recommended]::after {
+                content: "Recommended";
+            }
+            .lv-controls {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: center;
+                gap: 10px 16px;
+                margin: 0 auto 24px;
+                max-width: 1400px;
+            }
+            .lv-tradeoff {
+                flex-basis: 100%;
+                margin: 0;
+                text-align: center;
+                color: var(--muted);
+                font-size: 14px;
+            }
+            .lv-tradeoff:empty {
+                display: none;
+            }
+            .lv-tradeoff b {
+                color: var(--ink);
+            }
+            /* flow of screens */
+            .lv-flow {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: flex-start;
+                gap: 32px 28px;
+            }
+            .lv-screen {
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                min-width: 0;
+                max-width: 100%;
+            }
+            .lv-screen > figcaption {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                width: 100%;
+                max-width: 432px;
+                font-weight: 650;
+            }
+            .lv-screen > figcaption small {
+                display: block;
+                color: var(--muted);
+                font-size: 13px;
+                font-weight: 400;
+            }
+            .lv-step {
+                flex: none;
+                display: grid;
+                place-items: center;
+                width: 24px;
+                height: 24px;
+                margin-top: 1px;
+                border-radius: 50%;
+                background: var(--accent);
+                color: var(--accent-ink);
+                font-size: 13px;
+                font-weight: 700;
+            }
+            /* device frames */
+            .lv-device {
+                position: relative;
+                flex: none;
+                max-width: 100%;
+                color-scheme: light;
+            }
+            .lv-device-screen {
+                position: relative;
+                height: 100%;
+                overflow: hidden;
+                background: #fff;
+                color: #000;
+                text-align: left;
+            }
+            .lv-mobile {
+                position: relative;
+                width: 393px;
+                max-width: 100%;
+                background: #fff;
+                color: #000;
+                text-align: left;
+                font: 17px/1.3 -apple-system, system-ui, sans-serif;
+            }
+            .lv-device.is-browser {
+                width: 1280px;
+                padding-top: 40px;
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                background: var(--raised);
+                box-shadow: var(--shadow);
+                overflow: hidden;
+            }
+            .lv-device.is-browser::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 40px;
+                background:
+                    radial-gradient(circle, #ff5f57 5px, transparent 5.5px) 10px
+                        10px/20px 20px no-repeat,
+                    radial-gradient(circle, #febc2e 5px, transparent 5.5px) 30px
+                        10px/20px 20px no-repeat,
+                    radial-gradient(circle, #28c840 5px, transparent 5.5px) 50px
+                        10px/20px 20px no-repeat;
+            }
+            .lv-device.is-browser::after {
+                content: attr(data-url);
+                position: absolute;
+                top: 7px;
+                left: max(84px, 20%);
+                right: max(16px, 20%);
+                height: 26px;
+                overflow: hidden;
+                border-radius: 13px;
+                background: var(--surface);
+                color: var(--muted);
+                font-size: 12px;
+                line-height: 26px;
+                text-align: center;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+            .is-browser > .lv-device-screen {
+                min-height: 600px;
+                border-top: 1px solid var(--line);
+                font:
+                    15px/1.5 system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    sans-serif;
+            }
+            /* index */
+            .lv-grid {
+                display: grid;
+                gap: 20px;
+                height: 100%;
+                grid-template-columns: repeat(
+                    auto-fit,
+                    minmax(min(100%, 380px), 1fr)
+                );
+            }
+            .lv-grid.is-focus {
+                grid-template-columns: 1fr;
+            }
+            .lv-grid.is-focus figure:not(.is-current) {
+                display: none;
+            }
+            .lv-grid figure {
+                display: flex;
+                flex-direction: column;
+                min-height: min(78vh, 820px);
+                margin: 0;
+                background: var(--surface);
+                border: 1px solid var(--line);
+                border-radius: 14px;
+                box-shadow: var(--shadow);
+                overflow: hidden;
+            }
+            .lv-grid figure.is-current {
+                border-color: var(--accent);
+            }
+            .lv-grid figcaption {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 4px 12px;
+                padding: 12px 16px;
+                border-bottom: 1px solid var(--line);
+            }
+            .lv-grid figcaption b {
+                display: grid;
+                place-items: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 9px;
+                background: var(--accent);
+                color: var(--accent-ink);
+                font-size: 16px;
+            }
+            .lv-grid figcaption span {
+                flex: 1;
+                font-weight: 600;
+            }
+            .lv-grid figcaption small {
+                flex-basis: 100%;
+                color: var(--muted);
+                font-size: 13px;
+            }
+            .lv-grid iframe {
+                flex: 1;
+                width: 100%;
+                border: 0;
+                background: var(--canvas);
+            }
+            /* wireframe kit: fallback when no platform look is known */
+            .wf-page {
+                max-width: 1100px;
+                margin: 0 auto;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                padding: 20px;
+                background: var(--surface);
+                border: 1px solid var(--line);
+                border-radius: 14px;
+                box-shadow: var(--shadow);
+            }
+            .wf-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 16px;
+            }
+            .wf-col {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                flex: 1 1 240px;
+                min-width: 0;
+            }
+            .wf-col.is-narrow {
+                flex: 0 1 200px;
+            }
+            .wf-nav {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .wf-col > .wf-nav,
+            .wf-nav.is-vertical {
+                flex-direction: column;
+            }
+            .wf-nav-item {
+                padding: 8px 12px;
+                border-radius: 8px;
+                color: var(--muted);
+                font-weight: 500;
+            }
+            .wf-nav-item.is-active {
+                background: var(--accent-soft);
+                color: var(--accent);
+                font-weight: 650;
+                box-shadow: inset 3px 0 0 var(--accent);
+            }
+            .wf-tabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+                border-bottom: 1px solid var(--line);
+            }
+            .wf-tab {
+                padding: 8px 14px;
+                color: var(--muted);
+                font-weight: 500;
+                margin-bottom: -1px;
+                border-bottom: 2px solid transparent;
+            }
+            .wf-tab.is-active {
+                color: var(--accent);
+                border-bottom-color: var(--accent);
+                font-weight: 650;
+            }
+            .wf-panel,
+            .wf-card {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                padding: 16px;
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                background: var(--raised);
+            }
+            .wf-card {
+                background: var(--surface);
+            }
+            .wf-heading {
+                margin: 0;
+                font-size: 17px;
+                font-weight: 700;
+                color: var(--ink);
+            }
+            .wf-text {
+                margin: 0;
+                color: var(--muted);
+            }
+            .wf-input {
+                display: block;
+                min-height: 38px;
+                padding: 8px 12px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: var(--surface);
+                color: var(--muted);
+            }
+            .wf-button {
+                display: inline-flex;
+                align-items: center;
+                min-height: 38px;
+                padding: 8px 16px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: var(--surface);
+                color: var(--ink);
+                font-weight: 600;
+            }
+            .wf-button.is-primary {
+                background: var(--accent);
+                border-color: var(--accent);
+                color: var(--accent-ink);
+            }
+            .wf-button.is-disabled {
+                opacity: 0.45;
+            }
+            .wf-toggle {
+                display: inline-block;
+                width: 40px;
+                height: 22px;
+                border-radius: 11px;
+                background: var(--line);
+                position: relative;
+            }
+            .wf-toggle::after {
+                content: "";
+                position: absolute;
+                top: 3px;
+                left: 3px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background: var(--surface);
+            }
+            .wf-toggle.is-active {
+                background: var(--accent);
+            }
+            .wf-toggle.is-active::after {
+                left: 21px;
+            }
+            .wf-placeholder {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 96px;
+                border: 1px dashed var(--line);
+                border-radius: 8px;
+                color: var(--muted);
+                font-size: 13px;
+                background: repeating-linear-gradient(
+                    45deg,
+                    transparent 0 8px,
+                    var(--grid) 8px 9px
+                );
+            }
+            .wf-note {
+                margin: 0;
+                padding: 8px 12px;
+                border-left: 3px solid var(--diagram);
+                border-radius: 0 8px 8px 0;
+                background: var(--diagram-soft);
+                color: var(--ink);
+                font-size: 13px;
+            }
+            @media (max-width: 760px) {
+                html,
+                body {
+                    height: auto;
+                }
+                .lv-body {
+                    display: block;
+                }
+                .lv-stage {
+                    overflow: visible;
+                    padding: 16px;
+                }
+                .lv-notes {
+                    width: auto;
+                    border-left: 0;
+                    border-top: 1px solid var(--line);
+                }
+                .lv-bar {
+                    flex-wrap: wrap;
+                    padding: 12px 16px;
+                }
+                .lv-tools {
+                    order: 3;
+                    width: 100%;
+                    flex-wrap: wrap;
+                }
+                .lv-grid figure {
+                    min-height: 80vh;
+                }
+            }
+        </style>
+        <style id="option-style">
+            /* Option content CSS: target platform or project theme. Prefix classes, e.g. app-. */
+        </style>
+        <script>
+            (function () {
+                var d = document.documentElement;
+                try {
+                    var t = localStorage.getItem("lusona-theme");
+                    if (t) d.dataset.theme = t;
+                } catch (e) {}
+                if (
+                    window.self !== window.top &&
+                    !/(^#|&)full(&|$)/.test(location.hash)
+                )
+                    d.classList.add("is-embedded");
+            })();
+        </script>
+<style id="option-style">
+            .lv-flow { align-items: flex-start; }
+            .om-panel, .om-break { font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", ui-monospace, Menlo, monospace; color: #cfd3e6; }
+            .om-panel { width: 340px; box-sizing: border-box; padding: 16px; background: #1b1f2e; border: 2px solid #6c7bff; }
+            .om-hero { display: flex; align-items: center; gap: 12px; }
+            .om-glyph { font-size: 28px; line-height: 1; width: 32px; text-align: center; }
+            .om-hero-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+            .om-hero-text b { font-size: 14px; }
+            .om-hero-text small { font-size: 10px; letter-spacing: 1.2px; color: #8b91ab; font-weight: 700; }
+            .om-clock { font-size: 28px; font-weight: 700; }
+            .om-track { height: 8px; border-radius: 4px; background: rgba(207,211,230,.12); margin: 14px 0 12px; overflow: hidden; }
+            .om-track.wide { width: 360px; margin: 18px auto; }
+            .om-fill { height: 100%; min-width: 8px; border-radius: 4px; background: #cfd3e6; }
+            .om-sessions { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+            .om-sessions small { margin-left: 6px; color: #8b91ab; font-size: 11px; }
+            .om-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(207,211,230,.18); }
+            .om-dot.on { background: #cfd3e6; }
+            .om-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+            .om-btn { font: inherit; font-size: 11px; color: #cfd3e6; background: transparent; border: 1px solid #3a4060; padding: 8px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: default; }
+            .om-btn i { font-style: normal; font-size: 10px; }
+            .om-btn.ghost { border-color: transparent; color: #8b91ab; }
+            .om-hint { margin: 10px 0 0; font-size: 10px; color: #6f7590; }
+            .om-sep { border: 0; border-top: 1px solid rgba(207,211,230,.12); margin: 14px 0; }
+            .om-section { margin: 0 0 8px; font-size: 10px; font-weight: 700; letter-spacing: .6px; color: #8b91ab; }
+            .om-caption { margin: 6px 0 14px; font-size: 10px; color: #6f7590; line-height: 1.4; }
+            .om-seg { display: flex; width: 100%; }
+            .om-seg button { font: inherit; font-size: 11px; flex: 1; padding: 8px 0; color: #cfd3e6; background: transparent; border: 1px solid #3a4060; margin-left: -1px; cursor: default; }
+            .om-seg button:first-child { margin-left: 0; }
+            .om-seg button.is-on { background: rgba(207,211,230,.14); border-color: #cfd3e6; position: relative; z-index: 1; }
+            .om-seg + .om-section { margin-top: 14px; }
+            .om-toggle { display: flex; align-items: center; gap: 12px; border: 1px solid #3a4060; padding: 12px 14px; margin-top: 6px; }
+            .om-toggle div { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+            .om-toggle b { font-size: 13px; }
+            .om-toggle small { font-size: 10px; color: #8b91ab; line-height: 1.4; }
+            .om-switch { width: 40px; height: 20px; border: 1px solid #3a4060; background: #262a3a; position: relative; flex: none; }
+            .om-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: #8b91ab; }
+            .om-switch.on::after { left: auto; right: 3px; background: #cfd3e6; }
+            .om-break { width: 560px; height: 330px; display: grid; place-items: center; background: radial-gradient(ellipse at 30% 20%, #2a2f48 0, #141726 60%, #0d0f1a 100%); border: 2px solid #6c7bff; }
+            .om-break-inner { text-align: center; }
+            .om-break-glyph { font-size: 44px; }
+            .om-break-phase { margin: 8px 0 0; font-size: 12px; letter-spacing: 2px; color: #8b91ab; font-weight: 700; }
+            .om-break-clock { margin: 4px 0 0; font-size: 64px; font-weight: 700; line-height: 1.1; }
+            .om-break-meta { margin: 0; font-size: 11px; color: #8b91ab; }
+            .om-break-actions { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
+            .om-break-keys { margin: 12px 0 0; font-size: 10px; color: #6f7590; }
+            .om-pac { position: relative; width: 384px; height: 28px; margin: 18px auto; }
+            .om-pac-dots { position: absolute; top: 0; bottom: 0; right: 0; background: radial-gradient(circle, #cfd3e6 3px, transparent 3.5px) 0 50% / 24px 24px repeat-x; }
+            .om-pacman { position: absolute; top: 2px; width: 24px; height: 24px; margin-left: -14px; border-radius: 50%; background: conic-gradient(from 125deg, #f2d33c 0 290deg, transparent 290deg 360deg); }
+        </style>
+    </head>
+    <body>
+        <header class="lv-bar">
+            <span class="lv-letter" aria-label="Option A">A</span>
+            <div class="lv-titles">
+                <p class="lv-meta">
+                    <span>20261104-preset-durations-and-break-screen</span
+                    ><span class="lv-status is-chosen">Chosen reference</span
+                    ><span>Presets and break screen</span>
+                </p>
+                <h1 class="lv-q">Does this panel layout and break screen match what you want before implementation?</h1>
+                <p class="lv-lede">Decided here: the panel's control rows (focus presets, break length, three behavior toggles) and the full-screen break view. Out of scope: bar slot rendering, notification text, chime sound choice.</p>
+            </div>
+            <div class="lv-tools">
+                <button type="button" class="lv-tool" data-notes aria-pressed="true">Notes</button>
+                <button type="button" class="lv-tool" data-theme-toggle>Theme</button>
+            </div>
+        </header>
+        <div class="lv-body">
+            <main class="lv-stage">
+                <div class="lv-controls">
+                    <div class="lv-switch" role="group" aria-label="State" data-switch="state">
+                        <span>State</span
+                        ><button type="button" data-value="focus">Focus running</button
+                        ><button type="button" data-value="break">Break, screen on</button
+                        ><button type="button" data-value="idle">Idle, no break screen</button>
+                    </div>
+                    <p class="lv-tradeoff" aria-live="polite"></p>
+                </div>
+                <div class="lv-flow">
+                    <figure class="lv-screen">
+                        <figcaption><span>Panel<small>opens from the bar widget, as today</small></span></figcaption>
+                        <div class="om-panel">
+                            <div class="om-hero">
+                                <div class="om-hero-text">
+                                    <b data-state="focus idle">Focus</b>
+                                    <b data-state="break">Short break</b>
+                                    <small data-state="focus">RUNNING</small>
+                                    <small data-state="break">RUNNING</small>
+                                    <small data-state="idle">READY</small>
+                                </div>
+                                <span class="om-clock" data-state="focus">24:56</span>
+                                <span class="om-clock" data-state="break">04:58</span>
+                                <span class="om-clock" data-state="idle">50:00</span>
+                            </div>
+                            <div class="om-track"><div class="om-fill" data-state="focus" style="width:4%"></div><div class="om-fill" data-state="break" style="width:2%"></div><div class="om-fill" data-state="idle" style="width:0"></div></div>
+                            <div class="om-sessions">
+                                <span class="om-dot on"></span><span class="om-dot on"></span><span class="om-dot on"></span>
+                                <small>3 focus sessions done</small>
+                            </div>
+                            <div class="om-actions">
+                                <button class="om-btn" data-state="focus break"><i>❚❚</i> Pause</button>
+                                <button class="om-btn" data-state="idle"><i>▶</i> Start</button>
+                                <button class="om-btn"><i>↻</i> Reset</button>
+                                <button class="om-btn"><i>⏭</i> Skip</button>
+                            </div>
+                            <p class="om-hint">Space start/pause · R reset · S skip</p>
+                            <hr class="om-sep" />
+                            <p class="om-section">Focus</p>
+                            <div class="om-seg" role="radiogroup" aria-label="Focus length">
+                                <button>15</button><button class="is-on" data-state="focus break">25</button><button data-state="idle">25</button><button class="is-on" data-state="idle">50</button><button data-state="focus break">50</button><button>90</button>
+                            </div>
+                            <p class="om-caption">Minutes per focus session. Applies to the next focus session; a running one keeps its end time.</p>
+                            <p class="om-section">Break</p>
+                            <div class="om-seg" role="radiogroup" aria-label="Break length">
+                                <button class="is-on">Short · 5 min</button><button>Long · 15 min</button>
+                            </div>
+                            <hr class="om-sep" />
+                            <p class="om-section">Behavior</p>
+                            <div class="om-toggle"><div><b>Notification</b><small>Send a desktop notification when a session ends.</small></div><span class="om-switch on"></span></div>
+                            <div class="om-toggle"><div><b>Chime</b><small>Play a short sound when a session ends.</small></div><span class="om-switch on"></span></div>
+                            <div class="om-toggle"><div><b>Break screen</b><small>Cover every monitor during breaks with the countdown.</small></div><span class="om-switch on" data-state="focus break"></span><span class="om-switch" data-state="idle"></span></div>
+                        </div>
+                    </figure>
+                    <figure class="lv-screen" data-state="break">
+                        <figcaption><span>Break screen<small>every monitor, while a break runs and the toggle is on</small></span></figcaption>
+                        <div class="om-break">
+                            <div class="om-break-inner">
+                                <p class="om-break-phase">SHORT BREAK</p>
+                                <p class="om-break-clock">04:58</p>
+                                <div class="om-pac" role="progressbar" aria-label="Break progress" aria-valuenow="30">
+                                    <div class="om-pac-dots" style="left:30%"></div>
+                                    <span class="om-pacman" style="left:30%"></span>
+                                </div>
+                                <p class="om-break-meta">Focus resumes at 13:05 · 3 sessions done today</p>
+                                <div class="om-break-actions">
+                                    <button class="om-btn"><i>❚❚</i> Pause · Space</button>
+                                    <button class="om-btn"><i>+</i> 5 min · E</button>
+                                    <button class="om-btn"><i>■</i> Stop · S</button>
+                                </div>
+                                <p class="om-break-keys">Esc hides this screen until the break ends</p>
+                            </div>
+                        </div>
+                    </figure>
+                </div>
+            </main>
+            <aside class="lv-notes" aria-label="Reference notes">
+                <section class="is-binding">
+                    <h2>Binding</h2>
+                    <ul>
+                        <li>V1: Panel order top to bottom: hero (phase, status, countdown; no icon), progress, sessions, actions, Focus row, Break row, Behavior toggles.</li>
+                        <li>V2: Focus row is one segmented control with exactly 15, 25, 50, 90; one selected at all times.</li>
+                        <li>V3: Break row is one segmented control with Short (5 min) and Long (15 min); one selected at all times.</li>
+                        <li>V4: Behavior holds exactly three toggles: Notification, Chime, Break screen.</li>
+                        <li>V5: Break screen shows phase, countdown, progress, and three buttons in this order: Pause (Resume while paused), +5 min, Stop. No icon above the phase. A key hint line below the buttons names Esc as hide. It covers every monitor.</li>
+                        <li>V7: Break screen progress is a row of dots across the width with a Pac-Man figure at the elapsed position; dots behind it are gone.</li>
+                        <li>V6: Free-form minute fields and the "sessions per cycle" field are gone.</li>
+                    </ul>
+                </section>
+                <section>
+                    <h2>Illustrative</h2>
+                    <ul>
+                        <li>Colors, spacing, and fonts follow the active Omarchy theme at runtime.</li>
+                        <li>Copy of captions and the break-screen meta line.</li>
+                        <li>The session counter wording ("3 focus sessions done") while the cycle question is open.</li>
+                    </ul>
+                </section>
+                <section class="is-fidelity">
+                    <h2>Fidelity</h2>
+                    <p>Hand-drawn HTML of the real Quickshell panel. Production uses Omarchy kit components (ButtonGroup, Toggle, KeyboardPanel, OverlayWindow). The bar slot keeps its Nerd Font glyph; the panel and break screen show none. The break screen's wallpaper dimming and the Pac-Man drawing are approximate.</p>
+                </section>
+                <section>
+                    <h2>Open questions</h2>
+                    <ul>
+                        <li>Q1: With a manual Short/Long break choice, does the "long break every 4 sessions" cycle go away? The mockup assumes yes and shows a plain session counter.</li>
+                        <li>Q2: Auto-start breaks and auto-start focus toggles are not in the three behavior options. Remove them, or keep them as settings without a toggle?</li>
+                        <li>Q3: Break screen: should it also appear for a break started by Skip, and should it block input or stay dismissable with Esc or a click? Mockup: dismissable.</li>
+                        <li>Q4: Chime sound: the freedesktop "complete" sound shipped on the system, or a bundled file?</li>
+                    </ul>
+                </section>
+                <section class="is-never">
+                    <h2>Must not happen</h2>
+                    <ul>
+                        <li>The break screen must never trap the session: Esc, click, Hide, or Stop always removes it, and it never appears during a focus phase.</li>
+                        <li>+5 min never pushes a break past 180 minutes left; it is ignored beyond that.</li>
+                        <li>Changing the focus preset while a session runs must not reset the running countdown.</li>
+                        <li>The chime must not play when the Chime toggle is off, and must never be routed through a shell string.</li>
+                    </ul>
+                </section>
+            </aside>
+        </div>
+        <script>
+            (function () {
+                var d = document.documentElement,
+                    $$ = function (s) {
+                        return [].slice.call(document.querySelectorAll(s));
+                    };
+                var tt = document.querySelector("[data-theme-toggle]");
+                if (tt)
+                    tt.onclick = function () {
+                        var dark = getComputedStyle(d).colorScheme === "dark";
+                        d.dataset.theme = dark ? "light" : "dark";
+                        try {
+                            localStorage.setItem(
+                                "lusona-theme",
+                                d.dataset.theme,
+                            );
+                        } catch (e) {}
+                    };
+                var nb = document.querySelector("[data-notes]"),
+                    na = document.querySelector(".lv-notes");
+                if (nb && na)
+                    nb.onclick = function () {
+                        na.hidden = !na.hidden;
+                        nb.setAttribute("aria-pressed", String(!na.hidden));
+                    };
+                var g = document.querySelector(".lv-grid"),
+                    f = g ? $$(".lv-grid>figure") : [];
+                function pick(i) {
+                    f.forEach(function (x, j) {
+                        x.classList.toggle("is-current", j === i);
+                    });
+                }
+                $$("[data-view]").forEach(function (b) {
+                    b.onclick = function () {
+                        if (g)
+                            g.classList.toggle(
+                                "is-focus",
+                                b.dataset.view === "focus",
+                            );
+                        $$("[data-view]").forEach(function (x) {
+                            x.setAttribute("aria-pressed", String(x === b));
+                        });
+                    };
+                });
+                f.forEach(function (x, j) {
+                    x.addEventListener("click", function () {
+                        pick(j);
+                    });
+                });
+                // option and state switches; hash params: #option=b&state=failed (combine with &; "full" is a flag)
+                function dec(s) {
+                    try {
+                        return decodeURIComponent(s);
+                    } catch (e) {
+                        return s;
+                    }
+                }
+                function params() {
+                    var p = {};
+                    location.hash
+                        .slice(1)
+                        .split("&")
+                        .forEach(function (s) {
+                            if (!s) return;
+                            var i = s.indexOf("=");
+                            p[dec(i < 0 ? s : s.slice(0, i))] =
+                                i < 0 ? "" : dec(s.slice(i + 1)).toLowerCase();
+                        });
+                    return p;
+                }
+                function btn(sw, val) {
+                    return [].slice
+                        .call(sw.querySelectorAll("button[data-value]"))
+                        .filter(function (x) {
+                            return x.dataset.value.toLowerCase() === val;
+                        })[0];
+                }
+                function set(kind, val, save) {
+                    var sw = document.querySelector(
+                        '[data-switch="' + kind + '"]',
+                    );
+                    if (!sw || !val) return;
+                    val = String(val).toLowerCase();
+                    var bs = [].slice.call(
+                            sw.querySelectorAll("button[data-value]"),
+                        ),
+                        b = btn(sw, val);
+                    if (!b) return;
+                    bs.forEach(function (x) {
+                        x.setAttribute("aria-pressed", String(x === b));
+                    });
+                    $$("[data-" + kind + "]").forEach(function (el) {
+                        if (el.closest("[data-switch]")) return;
+                        if (
+                            el
+                                .getAttribute("data-" + kind)
+                                .toLowerCase()
+                                .split(/\s+/)
+                                .indexOf(val) < 0
+                        )
+                            el.setAttribute("data-lv-hidden", "");
+                        else el.removeAttribute("data-lv-hidden");
+                    });
+                    if (kind === "option") {
+                        var L = val.toUpperCase(),
+                            t = document.querySelector(".lv-tradeoff"),
+                            l = document.querySelector(".lv-letter");
+                        if (l) {
+                            l.textContent = L;
+                            l.setAttribute("aria-label", "Option " + L);
+                        }
+                        if (t) {
+                            t.textContent = "";
+                            var h = document.createElement("b");
+                            h.textContent =
+                                b.textContent +
+                                (b.dataset.tradeoff ? ": " : "");
+                            t.appendChild(h);
+                            t.appendChild(
+                                document.createTextNode(
+                                    b.dataset.tradeoff || "",
+                                ),
+                            );
+                            if (b.hasAttribute("data-recommended")) {
+                                var r = document.createElement("em");
+                                r.className = "lv-rec";
+                                r.textContent = "Recommended";
+                                t.appendChild(r);
+                            }
+                        }
+                    }
+                    if (save) {
+                        var p = params();
+                        p[kind] = val;
+                        history.replaceState(
+                            null,
+                            "",
+                            "#" +
+                                Object.keys(p)
+                                    .map(function (k) {
+                                        return p[k] === "" ? k : k + "=" + p[k];
+                                    })
+                                    .join("&"),
+                        );
+                    }
+                }
+                function init() {
+                    var p = params();
+                    $$("[data-switch]").forEach(function (g) {
+                        var k = g.dataset.switch,
+                            first =
+                                g.querySelector("[data-recommended]") ||
+                                g.querySelector("button[data-value]");
+                        set(
+                            k,
+                            p[k] && btn(g, p[k])
+                                ? p[k]
+                                : first && first.dataset.value,
+                            false,
+                        );
+                    });
+                }
+                $$("[data-switch] button[data-value]").forEach(function (b) {
+                    b.onclick = function () {
+                        set(
+                            b.closest("[data-switch]").dataset.switch,
+                            b.dataset.value,
+                            true,
+                        );
+                    };
+                });
+                init();
+                window.addEventListener("hashchange", init);
+                document.addEventListener("keydown", function (e) {
+                    var i = "abcd".indexOf(e.key.toLowerCase());
+                    if (
+                        i < 0 ||
+                        e.metaKey ||
+                        e.ctrlKey ||
+                        e.altKey ||
+                        (e.target.closest &&
+                            e.target.closest(
+                                "input,textarea,[contenteditable]",
+                            ))
+                    )
+                        return;
+                    if (f[i]) pick(i);
+                    else set("option", "abcd"[i], true);
+                });
+            })();
+        </script>
+    </body>
+</html>

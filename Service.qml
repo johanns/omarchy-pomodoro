@@ -5,8 +5,9 @@ import qs.Commons as Commons
 import "Model.js" as Model
 
 // The single timer behind every copy of the bar widget. The bar builds one
-// widget per monitor, so the countdown, the phase changes and the
-// notification live here, once, and the widgets only read and call in.
+// widget per monitor, so the countdown, the phase changes, the chime, the
+// notification and the break screen live here, once; the widgets only read
+// and call in.
 //
 // Runtime state is saved to ~/.local/state/omarchy/pomodoro.json, never
 // under the plugin directory: a write there would reload the plugin.
@@ -20,19 +21,24 @@ Item {
   property var settings: ({})
   readonly property var cfg: Model.normalizeSettings(settings)
 
+  // Plain initial values: restore() and onCfgChanged assign these; they are
+  // not bindings on cfg.
   property string phase: "focus"
   property bool running: false
   property double endsAt: 0
-  property int remainingMs: Model.phaseDurationMs("focus", cfg)
+  property int durationMs: 25 * 60000
+  property int remainingMs: 25 * 60000
   property int completedFocus: 0
   property bool restored: false
+  // Esc or Hide on the break screen keeps it away for the rest of the break.
+  property bool breakScreenHidden: false
 
-  readonly property int durationMs: Model.phaseDurationMs(phase, cfg)
   readonly property bool paused: !running && remainingMs < durationMs
-  readonly property bool onBreak: Model.isBreak(phase)
+  readonly property bool engaged: running || paused
   readonly property real progress: Model.fraction(remainingMs, durationMs)
+  readonly property bool breakScreenShown: Model.shouldShowBreakScreen(phase, engaged, cfg, breakScreenHidden)
 
-  signal phaseCompleted(string finishedPhase, string nextPhase)
+  readonly property string chimePath: "/usr/share/sounds/freedesktop/stereo/complete.oga"
 
   Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
 
@@ -57,30 +63,57 @@ Item {
     else start()
   }
 
-  // Back to the start of the current phase, stopped.
+  // Back to the start of the current phase at its configured length, stopped.
+  // Reset on a focus phase that is already at its start has nothing else to
+  // undo, so it clears the session count.
   function reset() {
+    const atStart = !engaged && phase === "focus"
     running = false
     endsAt = 0
+    durationMs = Model.phaseDurationMs(phase, cfg)
     remainingMs = durationMs
+    if (atStart) completedFocus = 0
+    persist()
+  }
+
+  function resetCount() {
+    completedFocus = 0
     persist()
   }
 
   // Straight to the next phase without finishing this one. A skipped focus
-  // session does not count toward the long break.
+  // session does not count.
   function skip() {
-    const next = Model.advance(phase, completedFocus, cfg)
-    if (phase === "focus") next.completedFocus = completedFocus
-    enterPhase(next.phase, next.completedFocus, false)
+    const next = Model.advance(phase, completedFocus)
+    enterPhase(next.phase, phase === "focus" ? completedFocus : next.completedFocus)
   }
 
-  function enterPhase(nextPhase, nextCompleted, autoStart) {
+  // Stop on the break screen: end the break now. In a focus phase it is the
+  // same as skip.
+  function stop() { skip() }
+
+  // Five more minutes on the current phase, bounded by the model.
+  function extend() {
+    const current = running ? Math.max(0, Math.round(endsAt - Date.now())) : remainingMs
+    const next = Model.extend(current, durationMs)
+    if (!next) return
+    durationMs = next.durationMs
+    remainingMs = next.remainingMs
+    if (running) endsAt = Date.now() + next.remainingMs
+    persist()
+  }
+
+  function hideBreakScreen() { breakScreenHidden = true }
+
+  function enterPhase(nextPhase, nextCompleted) {
     phase = nextPhase
     completedFocus = nextCompleted
     endsAt = 0
     running = false
-    remainingMs = Model.phaseDurationMs(nextPhase, cfg)
-    if (autoStart) start()
-    else persist()
+    breakScreenHidden = false
+    durationMs = Model.phaseDurationMs(nextPhase, cfg)
+    remainingMs = durationMs
+    persist()
   }
 
   function tick() {
@@ -96,33 +129,31 @@ Item {
 
   function complete() {
     const finished = phase
-    const next = Model.advance(phase, completedFocus, cfg)
+    const next = Model.advance(phase, completedFocus)
     if (cfg.notify) notifyCompleted(finished, next.phase)
-    phaseCompleted(finished, next.phase)
-    enterPhase(next.phase, next.completedFocus, Model.autoStarts(next.phase, cfg))
+    if (Model.shouldChime(cfg)) chime()
+    enterPhase(next.phase, next.completedFocus)
   }
 
   function notifyCompleted(finished, nextPhase) {
     const minutes = Commons.I18n.formatNumber(Model.phaseMinutes(nextPhase, cfg))
-    let title, body, glyph
-    if (finished === "focus") {
-      title = strings.t("notify.focusDone.title")
-      body = strings.t(nextPhase === "longBreak" ? "notify.focusDone.longBreak" : "notify.focusDone.shortBreak").arg(minutes)
-      glyph = ""
-    } else {
-      title = strings.t("notify.breakDone.title")
-      body = strings.t("notify.breakDone.body").arg(minutes)
-      glyph = ""
-    }
+    const focusDone = finished === "focus"
+    const title = strings.t(focusDone ? "notify.focusDone.title" : "notify.breakDone.title")
+    const body = strings.t(focusDone ? "notify.focusDone.body" : "notify.breakDone.body").arg(minutes)
     // Arguments go as an argv array, never through a shell string.
     Quickshell.execDetached([
       "omarchy-notification-send",
       "--app-name", "Pomodoro",
       "-u", "normal",
-      "-g", glyph,
+      "-g", focusDone ? "" : "",
       Model.plainText(title),
       Model.plainText(body)
     ])
+  }
+
+  function chime() {
+    if (chimeProc.running) return
+    chimeProc.running = true
   }
 
   function statusText() {
@@ -134,7 +165,9 @@ Item {
       remaining: Model.formatClock(remainingMs),
       durationMs: durationMs,
       completedFocus: completedFocus,
-      sessionsBeforeLongBreak: cfg.sessionsBeforeLongBreak
+      focusMinutes: cfg.focusMinutes,
+      breakLength: cfg.breakLength,
+      breakScreenShown: breakScreenShown
     })
   }
 
@@ -144,6 +177,7 @@ Item {
       phase: phase,
       running: running,
       endsAt: endsAt,
+      durationMs: durationMs,
       remainingMs: running ? Math.max(0, Math.round(endsAt - Date.now())) : remainingMs,
       completedFocus: completedFocus
     }, Date.now()) + "\n")
@@ -155,16 +189,18 @@ Item {
     completedFocus = state.completedFocus
     running = state.running
     endsAt = state.endsAt
+    durationMs = state.durationMs
     remainingMs = state.remainingMs
     restored = true
     if (running) tick()
   }
 
-  // A duration edited while the phase sits untouched at its start takes
-  // effect at once; a session already under way keeps its end time.
+  // A length chosen while the phase sits untouched at its start takes effect
+  // at once; a session under way or paused keeps its time.
   onCfgChanged: {
-    if (!running && !paused) remainingMs = durationMs
-    else if (!running) remainingMs = Math.min(remainingMs, durationMs)
+    if (engaged) return
+    durationMs = Model.phaseDurationMs(phase, cfg)
+    remainingMs = durationMs
   }
 
   Timer {
@@ -174,12 +210,29 @@ Item {
     onTriggered: root.tick()
   }
 
+  // The chime is a fixed system sound through pw-play. A missing player or
+  // file ends with a nonzero exit, which is logged and otherwise ignored.
+  Process {
+    id: chimeProc
+    command: ["pw-play", root.chimePath]
+    onExited: (exitCode) => {
+      if (exitCode !== 0) console.warn("jg.pomodoro: chime failed, pw-play exit " + exitCode)
+    }
+  }
+
   FileView {
     id: stateFile
     path: Quickshell.env("HOME") + "/.local/state/omarchy/pomodoro.json"
     blockLoading: true
     atomicWrites: true
     printErrors: false
+  }
+
+  // One full-screen break window per monitor; each shows and hides from the
+  // shared state here.
+  Variants {
+    model: Quickshell.screens
+    BreakScreen { service: root }
   }
 
   Component.onCompleted: {

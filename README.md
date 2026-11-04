@@ -2,8 +2,9 @@
 
 Plugin id: `jg.pomodoro`. A focus/break countdown in the bar with a control panel.
 
-Default cycle: 25 minute focus, 5 minute short break, 15 minute long break after
-every 4 focus sessions. A desktop notification is sent when a session ends.
+Focus sessions of 15, 25, 50 or 90 minutes, breaks of 5 (short) or 15 (long)
+minutes, picked with one tap in the panel. When a session ends the plugin can send
+a desktop notification, play a chime, and cover every monitor with a break screen.
 
 ## Install
 
@@ -23,6 +24,7 @@ Requires Omarchy with the Quickshell shell (`omarchy-shell`).
 | `manifest.json` | Plugin manifest (`service` + `bar-widget` kinds) |
 | `Service.qml` | The single timer. Holds phase, remaining time, completed sessions; sends notifications; saves state |
 | `Panel.qml` | Bar widget and `KeyboardPanel` with controls and settings |
+| `BreakScreen.qml` | Full-screen break view, one window per monitor, driven by the service |
 | `Model.js` | Pure logic: settings bounds, phase order, formatting, state (de)serialization |
 | `Model.test.js` | `node Model.test.js` runs the logic tests |
 | `i18n/en.json` | Strings. Add `<code>.json` per Omarchy language code |
@@ -39,10 +41,27 @@ running session survives `omarchy restart shell`.
 - Middle click: skip to the next phase
 - Horizontal bar: glyph plus `mm:ss`. Vertical bar: glyph with minutes left under it
 
+Reset returns to the start of the current phase at its configured length. Pressing
+Reset on a focus phase that is already at its start clears the session count.
+
 ## Panel keys
 
-Space start/pause, R reset, S or N skip, Esc close, j/k or arrows move the cursor,
-h/l adjust a duration field, Enter or Space activates a button or toggle.
+Space start/pause, R reset, S or N skip, Esc close, j/k or arrows move between rows,
+h/l move along a row of chips, Enter or Space activates the chip, button, or toggle.
+
+## Break screen
+
+With the Break screen toggle on, every monitor shows the break countdown while a
+break runs or is paused: the phase, the time left, a Pac-Man progress row, and
+three buttons. Pause/Resume (Space), +5 min (E), Stop (S). Esc or a click on the
+backdrop hides it for the rest of that break. Stop ends the break and leaves the
+next focus session ready.
+
+## Chime
+
+With the Chime toggle on, the system sound
+`/usr/share/sounds/freedesktop/stereo/complete.oga` plays through `pw-play` when a
+session ends. A missing player or file is logged and otherwise ignored.
 
 ## IPC
 
@@ -52,6 +71,10 @@ omarchy-shell jg.pomodoro start
 omarchy-shell jg.pomodoro pause
 omarchy-shell jg.pomodoro reset         # back to the start of the phase
 omarchy-shell jg.pomodoro skip          # next phase
+omarchy-shell jg.pomodoro stop          # same as skip; ends a break
+omarchy-shell jg.pomodoro extend        # five more minutes, up to 180 left
+omarchy-shell jg.pomodoro hideBreakScreen
+omarchy-shell jg.pomodoro resetCount    # focus sessions done back to 0
 omarchy-shell jg.pomodoro toggle        # open or close the panel
 omarchy-shell jg.pomodoro status        # JSON
 ```
@@ -69,15 +92,17 @@ o.bind("SUPER ALT, P", "omarchy-shell jg.pomodoro toggleTimer", "Pomodoro start/
 Stored inline on the bar entry in `~/.config/omarchy/shell.json`, written by the
 panel. Values outside the bounds are clamped.
 
-| Key | Default | Bounds |
+| Key | Default | Values |
 |-----|---------|--------|
-| `focusMinutes` | 25 | 1–180 |
-| `shortBreakMinutes` | 5 | 1–60 |
-| `longBreakMinutes` | 15 | 1–120 |
-| `sessionsBeforeLongBreak` | 4 | 1–12 |
-| `autoStartBreaks` | false | |
-| `autoStartFocus` | false | |
+| `focusMinutes` | 25 | 15, 25, 50, 90 (other numbers snap to the nearest) |
+| `breakLength` | `short` | `short` (5 min), `long` (15 min) |
 | `notify` | true | |
+| `chime` | false | |
+| `breakScreen` | false | |
+
+Keys from version 1.0 (`shortBreakMinutes`, `longBreakMinutes`,
+`sessionsBeforeLongBreak`, `autoStartBreaks`, `autoStartFocus`) are ignored. A
+version 1.0 state file is migrated on the first start.
 
 ## Development
 
