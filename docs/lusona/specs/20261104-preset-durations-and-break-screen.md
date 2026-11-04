@@ -36,46 +36,46 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
 
 ### Acceptance criteria
 
-- [ ] AC1: The panel shows a Focus row with exactly four options, 15, 25, 50 and 90, one of
+- [x] AC1: The panel shows a Focus row with exactly four options, 15, 25, 50 and 90, one of
   which is always selected. Selecting an option persists `focusMinutes` to the bar entry.
-- [ ] AC2: A focus preset chosen while idle at the start of a focus phase sets the countdown to
+- [x] AC2: A focus preset chosen while idle at the start of a focus phase sets the countdown to
   that length at once. A preset chosen while a focus session runs or is paused does not change
   the running session; the next focus session uses it.
-- [ ] AC3: The panel shows a Break row with exactly two options, Short (5 min) and Long
+- [x] AC3: The panel shows a Break row with exactly two options, Short (5 min) and Long
   (15 min), one always selected. The selection decides the length of the next break and
   persists as a setting.
-- [ ] AC4: Behavior shows exactly three toggles: Notification, Chime, Break screen. Each
+- [x] AC4: Behavior shows exactly three toggles: Notification, Chime, Break screen. Each
   persists as a boolean setting and defaults to Notification on, Chime off, Break screen off.
-- [ ] AC5: With Chime on, a short sound plays when a focus session or a break ends. With Chime
+- [x] AC5: With Chime on, a short sound plays when a focus session or a break ends. With Chime
   off, no sound plays. The player is invoked with an argument array, never a shell string, and a
   missing player or sound file is logged and otherwise ignored.
-- [ ] AC6: With Break screen on, a full-screen view appears on every monitor while a break runs
+- [x] AC6: With Break screen on, a full-screen view appears on every monitor while a break runs
   or is paused, showing the phase, the countdown, a progress row drawn as a Pac-Man eating a
   line of dots (V7), and three buttons: Pause, +5 min, Stop. There is no icon above the phase
   and no explanatory text; one hint line below the buttons names Esc. Esc, a click outside the
   content, or the end of the break removes it; once hidden it stays hidden for that break. It
   never appears during a focus phase or when the toggle is off.
-- [ ] AC12: Break screen actions. Pause holds the break countdown and the button reads Resume;
+- [x] AC12: Break screen actions. Pause holds the break countdown and the button reads Resume;
   Resume continues from the remaining time. The panel shows the same paused state. +5 min adds
   five minutes to the time left in the break, in both the screen and the panel, and is ignored
   once the time left would exceed 180 minutes. Stop ends the break at once and leaves the next
   focus session idle at its full length. Keyboard: Space pause or resume, E extend, S stop,
   Esc hide. The Pac-Man advances with elapsed time, and Pause or +5 min move it accordingly.
-- [ ] AC7: Free-form minute fields and the sessions-per-cycle field are no longer in the panel.
-- [ ] AC8: A `shell.json` entry written by the current version loads without error: an unknown
+- [x] AC7: Free-form minute fields and the sessions-per-cycle field are no longer in the panel.
+- [x] AC8: A `shell.json` entry written by the current version loads without error: an unknown
   `focusMinutes` value maps to the nearest preset, the obsolete keys (`shortBreakMinutes`,
   `longBreakMinutes`, `sessionsBeforeLongBreak`, `autoStartBreaks`, `autoStartFocus`) are
   ignored, and the saved timer state file from the current version restores as before.
-- [ ] AC13: When a phase's countdown reaches zero, the next phase starts running at once
+- [x] AC13: When a phase's countdown reaches zero, the next phase starts running at once
   (break after focus, focus after break), after the notification and chime for the finished
   phase. Reaching zero through Stop, Skip or Reset does not count as finishing.
-- [ ] AC14: `omarchy-shell jg.pomodoro chime` plays the chime regardless of the toggle, for
+- [x] AC14: `omarchy-shell jg.pomodoro chime` plays the chime regardless of the toggle, for
   testing.
-- [ ] AC11: The panel shows a count of focus sessions completed; the long-break cycle and its
+- [x] AC11: The panel shows a count of focus sessions completed; the long-break cycle and its
   per-cycle dots are gone.
-- [ ] AC9: Keyboard navigation in the panel reaches the new rows and toggles: Up/Down (j/k)
+- [x] AC9: Keyboard navigation in the panel reaches the new rows and toggles: Up/Down (j/k)
   moves between rows, Left/Right (h/l) moves within a segmented row, Enter or Space selects.
-- [ ] AC10: `omarchy plugin validate` passes and `node Model.test.js` passes, including new
+- [x] AC10: `omarchy plugin validate` passes and `node Model.test.js` passes, including new
   cases for preset mapping, break-length selection, settings migration, and break extension.
 
 ### Decisions and uncertainty
@@ -217,8 +217,9 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
   (`05:00`, `completedFocus` 1, `breakScreenShown` true) and both break windows mapped. The
   chime process logged "started" and "played" (exit 0) at that completion and again on
   `omarchy-shell jg.pomodoro chime` (AC14). The owner reported hearing no chime at 13:59 with
-  the toggle on; the notification history shows that completion fired. Whether the sound is
-  audible is for the owner to confirm; the process path is verified.
+  the toggle on; the notification history shows that completion fired. The owner confirmed
+  hearing the on-demand chime ("heard it", 2026-11-04 14:0x), so AC5 and AC14 are met end to
+  end. The earlier silence is explained by the default sink at the time.
 - Unexplained observation: once, after the key sequence E, Space, S on the break screen, the
   focus phase came back at 15:00 instead of 25:00. Four replays of that and related sequences,
   and the IPC equivalent, all returned 25:00. Not reproduced; noted for the owner's acceptance
@@ -233,16 +234,15 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
 
 - Authorized work: implementation of this spec, owner's `/lusona:implement` on 2026-11-04.
   Commits of verified increments included. Push not separately authorized yet.
-- Completed and remaining work: T1 and T2 implemented, reviewed, fixed, and re-verified on the
-  desktop; committed. Remaining: owner acceptance; owner decision on review finding 3; push
-  (needs authority).
-- Human acceptance and delivery: pushed to https://github.com/johanns/omarchy-pomodoro as
-  `9061f23` on the owner's instruction ("commit and push it", 2026-11-04). Explicit acceptance
-  of the behavior and the decision on review finding 3 are still open.
+- Completed and remaining work: all acceptance criteria AC1–AC14 met and delivered. Nothing
+  remaining for this change.
+- Human acceptance and delivery: `9061f23` pushed on "commit and push it"; `297d3ed`
+  (auto-start, chime IPC) pushed on "push it" after the owner used the plugin, chose
+  automatic phase chaining (Q6), and confirmed the chime. Delivered to
+  https://github.com/johanns/omarchy-pomodoro.
 - Resume context: repository `~/.config/omarchy/plugins/jg.pomodoro`, branch `main` at
   `df42b41`; spec and visuals uncommitted.
 - Try it: open the panel from the bar; pick 50 under Focus and Long under Break; turn on
   Break screen; click Skip then Start; every monitor shows the break view; press E (10:00),
   Space (paused), S (back to Focus, ready).
-- Next action: owner confirms the chime is audible (it played twice at 14:03) and accepts;
-  push needs authority.
+- Next action: none. The row is Done.

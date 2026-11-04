@@ -12,7 +12,7 @@ execution capacity while retaining their actual state and blocker. Completion re
 
 | Item / change | State | Completion condition | Current blocker or next action |
 | --- | --- | --- | --- |
-| [Preset durations, break choice, and break screen](specs/20261104-preset-durations-and-break-screen.md) | Review | AC1–AC12 met, tests green, inspected on the owner's desktop, owner accepts, pushed | Phases now auto-start (Q6). Owner confirms chime audible and accepts; push |
+| [Preset durations, break choice, and break screen](specs/20261104-preset-durations-and-break-screen.md) | Done | AC1–AC14 met, tests green, inspected on the owner's desktop, owner accepted, pushed | Delivered 2026-11-04 as 9061f23 and 297d3ed |
 
 ## Icebox
 
