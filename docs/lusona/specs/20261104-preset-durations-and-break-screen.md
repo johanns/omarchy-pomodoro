@@ -221,11 +221,14 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
 - Completed and remaining work: T1 and T2 implemented, reviewed, fixed, and re-verified on the
   desktop; committed. Remaining: owner acceptance; owner decision on review finding 3; push
   (needs authority).
-- Human acceptance and delivery: not yet given. Delivery (push to GitHub) awaits authority.
+- Human acceptance and delivery: pushed to https://github.com/johanns/omarchy-pomodoro as
+  `9061f23` on the owner's instruction ("commit and push it", 2026-11-04). Explicit acceptance
+  of the behavior and the decision on review finding 3 are still open.
 - Resume context: repository `~/.config/omarchy/plugins/jg.pomodoro`, branch `main` at
   `df42b41`; spec and visuals uncommitted.
 - Try it: open the panel from the bar; pick 50 under Focus and Long under Break; turn on
   Break screen; click Skip then Start; every monitor shows the break view; press E (10:00),
   Space (paused), S (back to Focus, ready).
-- Next action: owner tries the panel and break screen, decides whether the break screen
-  should also appear while a break is idle at its start (finding 3), and authorizes the push.
+- Next action: owner tries the panel and break screen and decides whether the break screen
+  should also appear while a break is idle at its start (finding 3); then the row closes as
+  Done or a follow-up spec is opened.
