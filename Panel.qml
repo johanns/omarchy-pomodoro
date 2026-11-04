@@ -71,6 +71,7 @@ Panel {
   function extendPhase() { if (service) service.extend() }
   function hideBreakScreen() { if (service) service.hideBreakScreen() }
   function resetCount() { if (service) service.resetCount() }
+  function playChime() { if (service) service.chime() }
 
   // Writes carry only the keys this version knows, so obsolete ones from
   // version 1.0 drop out of the bar entry on the first change.
@@ -149,6 +150,7 @@ Panel {
     function extend(): void { root.extendPhase() }
     function hideBreakScreen(): void { root.hideBreakScreen() }
     function resetCount(): void { root.resetCount() }
+    function chime(): void { root.playChime() }
     function status(): string { return root.service ? root.service.statusText() : "{}" }
   }
 

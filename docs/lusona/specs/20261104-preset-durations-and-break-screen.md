@@ -65,8 +65,12 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
 - [ ] AC8: A `shell.json` entry written by the current version loads without error: an unknown
   `focusMinutes` value maps to the nearest preset, the obsolete keys (`shortBreakMinutes`,
   `longBreakMinutes`, `sessionsBeforeLongBreak`, `autoStartBreaks`, `autoStartFocus`) are
-  ignored, and the saved timer state file from the current version restores as before. A
-  finished phase never auto-starts the next one.
+  ignored, and the saved timer state file from the current version restores as before.
+- [ ] AC13: When a phase's countdown reaches zero, the next phase starts running at once
+  (break after focus, focus after break), after the notification and chime for the finished
+  phase. Reaching zero through Stop, Skip or Reset does not count as finishing.
+- [ ] AC14: `omarchy-shell jg.pomodoro chime` plays the chime regardless of the toggle, for
+  testing.
 - [ ] AC11: The panel shows a count of focus sessions completed; the long-break cycle and its
   per-cycle dots are gone.
 - [ ] AC9: Keyboard navigation in the panel reaches the new rows and toggles: Up/Down (j/k)
@@ -84,8 +88,12 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
   - Q1: The "long break every N sessions" cycle is removed. Every break uses the selected
     length. The session dots become a plain count of focus sessions done since the state was
     last reset.
-  - Q2: `autoStartBreaks` and `autoStartFocus` are dropped: no panel control, and the keys are
-    ignored if present. A finished phase leaves the next phase idle at its full length.
+  - Q2 (superseded by Q6): `autoStartBreaks` and `autoStartFocus` are dropped as settings: no
+    panel control, keys ignored if present.
+  - Q6 (owner, 2026-11-04, after using the plugin): phases chain automatically. A finished
+    focus session starts its break at once, so the break screen appears without a click; a
+    finished break starts the next focus session at once. Pause, Stop, Skip and Reset stay
+    manual. This resolves review finding 3.
   - Q3: The break screen is dismissable: Esc, the Hide action, or a click outside its content
     hides it for the rest of that break. The end of the break removes it.
   - Q5 (owner, 2026-11-04): the break screen gains Pause, +5 min, and Stop. Stop replaces the
@@ -204,6 +212,13 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
      far-future cases; 15 tests pass.
   Re-verified after the fixes and a shell restart: 15 tests, validate exit 0, IPC start, pause,
   extend, stop, resetCount, break windows on both monitors, clean shell log.
+- Auto-start (AC13, 2026-11-04 14:03): a state file with a focus session ending 15 s ahead was
+  loaded by a shell restart; when it reached zero the service entered the break running
+  (`05:00`, `completedFocus` 1, `breakScreenShown` true) and both break windows mapped. The
+  chime process logged "started" and "played" (exit 0) at that completion and again on
+  `omarchy-shell jg.pomodoro chime` (AC14). The owner reported hearing no chime at 13:59 with
+  the toggle on; the notification history shows that completion fired. Whether the sound is
+  audible is for the owner to confirm; the process path is verified.
 - Unexplained observation: once, after the key sequence E, Space, S on the break screen, the
   focus phase came back at 15:00 instead of 25:00. Four replays of that and related sequences,
   and the IPC equivalent, all returned 25:00. Not reproduced; noted for the owner's acceptance
@@ -229,6 +244,5 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
 - Try it: open the panel from the bar; pick 50 under Focus and Long under Break; turn on
   Break screen; click Skip then Start; every monitor shows the break view; press E (10:00),
   Space (paused), S (back to Focus, ready).
-- Next action: owner tries the panel and break screen and decides whether the break screen
-  should also appear while a break is idle at its start (finding 3); then the row closes as
-  Done or a follow-up spec is opened.
+- Next action: owner confirms the chime is audible (it played twice at 14:03) and accepts;
+  push needs authority.

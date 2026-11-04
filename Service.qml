@@ -127,12 +127,15 @@ Item {
     complete()
   }
 
+  // A finished phase hands straight over: the break begins as the focus
+  // session ends, and the next focus session as the break ends.
   function complete() {
     const finished = phase
     const next = Model.advance(phase, completedFocus)
     if (cfg.notify) notifyCompleted(finished, next.phase)
     if (Model.shouldChime(cfg)) chime()
     enterPhase(next.phase, next.completedFocus)
+    start()
   }
 
   function notifyCompleted(finished, nextPhase) {
@@ -211,12 +214,16 @@ Item {
   }
 
   // The chime is a fixed system sound through pw-play. A missing player or
-  // file ends with a nonzero exit, which is logged and otherwise ignored.
+  // file ends with a nonzero exit, which is logged with its stderr and
+  // otherwise ignored.
   Process {
     id: chimeProc
     command: ["pw-play", root.chimePath]
+    stderr: StdioCollector { id: chimeErr; waitForEnd: true }
+    onStarted: console.log("jg.pomodoro: chime started")
     onExited: (exitCode) => {
-      if (exitCode !== 0) console.warn("jg.pomodoro: chime failed, pw-play exit " + exitCode)
+      if (exitCode !== 0) console.warn("jg.pomodoro: chime failed, pw-play exit " + exitCode + ": " + chimeErr.text.trim())
+      else console.log("jg.pomodoro: chime played")
     }
   }
 

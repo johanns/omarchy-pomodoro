@@ -61,7 +61,13 @@ next focus session ready.
 
 With the Chime toggle on, the system sound
 `/usr/share/sounds/freedesktop/stereo/complete.oga` plays through `pw-play` when a
-session ends. A missing player or file is logged and otherwise ignored.
+session ends. A missing player or file is logged and otherwise ignored. Test it with
+`omarchy-shell jg.pomodoro chime`.
+
+## Phase changes
+
+A finished focus session starts its break at once, and a finished break starts the
+next focus session at once. Pause, Stop, Skip and Reset remain manual.
 
 ## IPC
 
@@ -75,6 +81,7 @@ omarchy-shell jg.pomodoro stop          # same as skip; ends a break
 omarchy-shell jg.pomodoro extend        # five more minutes, up to 180 left
 omarchy-shell jg.pomodoro hideBreakScreen
 omarchy-shell jg.pomodoro resetCount    # focus sessions done back to 0
+omarchy-shell jg.pomodoro chime         # play the chime now
 omarchy-shell jg.pomodoro toggle        # open or close the panel
 omarchy-shell jg.pomodoro status        # JSON
 ```
