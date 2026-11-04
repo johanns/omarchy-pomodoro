@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "id": "jg.pomodoro",
+  "name": "Pomodoro",
+  "version": "1.0.0",
+  "author": "Johanns Gregorian",
+  "license": "MIT",
+  "description": "A Pomodoro timer for the Omarchy shell: focus and break countdowns in the bar, with a control panel and a notification when each session ends.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Pomodoro",
+    "description": "Focus and break countdown with start, pause, reset and skip.",
+    "category": "Time",
+    "aliases": [
+      "timer",
+      "focus timer",
+      "tomato"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "centerEnd",
+    "defaults": {
+      "focusMinutes": 25,
+      "shortBreakMinutes": 5,
+      "longBreakMinutes": 15,
+      "sessionsBeforeLongBreak": 4,
+      "autoStartBreaks": false,
+      "autoStartFocus": false,
+      "notify": true
+    },
+    "schema": [
+      {
+        "key": "focusMinutes",
+        "type": "number",
+        "label": "Focus session length in minutes (1-180)",
+        "defaultValue": 25
+      },
+      {
+        "key": "shortBreakMinutes",
+        "type": "number",
+        "label": "Short break length in minutes (1-60)",
+        "defaultValue": 5
+      },
+      {
+        "key": "longBreakMinutes",
+        "type": "number",
+        "label": "Long break length in minutes (1-120)",
+        "defaultValue": 15
+      },
+      {
+        "key": "sessionsBeforeLongBreak",
+        "type": "number",
+        "label": "Focus sessions before a long break (1-12)",
+        "defaultValue": 4
+      },
+      {
+        "key": "autoStartBreaks",
+        "type": "boolean",
+        "label": "Start breaks automatically when a focus session ends",
+        "defaultValue": false
+      },
+      {
+        "key": "autoStartFocus",
+        "type": "boolean",
+        "label": "Start the next focus session automatically when a break ends",
+        "defaultValue": false
+      },
+      {
+        "key": "notify",
+        "type": "boolean",
+        "label": "Send a desktop notification when a session ends",
+        "defaultValue": true
+      }
+    ]
+  }
+}
