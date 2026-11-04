@@ -81,6 +81,10 @@ panel. Values outside the bounds are clamped.
 
 ## Development
 
-Saving `Panel.qml`, `Model.js` or `i18n/*` reloads the widget. The shell keeps
-the running service instance across reloads, so after editing `Service.qml` run
-`omarchy restart shell`.
+Saving `i18n/*.json` applies at once: the catalogs are watched files. Edits to
+`Panel.qml`, `Service.qml` or `Model.js` need `omarchy restart shell`. The shell
+does rescan the plugin on save, but Quickshell 0.3.2 does not expose
+`Qt.clearComponentCache`, so the rescan rebuilds the widget from the cached
+component and the saved change does not show.
+
+Run the logic tests with `node Model.test.js`.

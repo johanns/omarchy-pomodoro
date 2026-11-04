@@ -16,7 +16,7 @@
   "setting.focusMinutes": "Focus (minutes)",
   "setting.shortBreakMinutes": "Short break (minutes)",
   "setting.longBreakMinutes": "Long break (minutes)",
-  "setting.sessionsBeforeLongBreak": "Sessions before a long break",
+  "setting.sessionsBeforeLongBreak": "Sessions per cycle",
   "setting.autoStartBreaks": "Auto-start breaks",
   "setting.autoStartBreaks.description": "Begin the break as soon as a focus session ends.",
   "setting.autoStartFocus": "Auto-start focus",

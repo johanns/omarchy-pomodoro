@@ -401,14 +401,20 @@ Panel {
           fontFamily: root.bar.fontFamily
         }
 
+        // Two equal columns; each field stretches to its column so the four
+        // controls fill the panel width edge to edge.
         Grid {
+          id: durationsGrid
           width: parent.width
           columns: 2
           columnSpacing: Style.space(12)
           rowSpacing: Style.space(10)
+          readonly property real cellWidth: Math.floor((width - columnSpacing) / 2)
 
           NumberField {
             id: focusField
+            width: durationsGrid.cellWidth
+            fieldWidth: durationsGrid.cellWidth
             label: strings.t("setting.focusMinutes")
             from: Model.LIMITS.focusMinutes.min
             to: Model.LIMITS.focusMinutes.max
@@ -422,6 +428,8 @@ Panel {
 
           NumberField {
             id: shortField
+            width: durationsGrid.cellWidth
+            fieldWidth: durationsGrid.cellWidth
             label: strings.t("setting.shortBreakMinutes")
             from: Model.LIMITS.shortBreakMinutes.min
             to: Model.LIMITS.shortBreakMinutes.max
@@ -435,6 +443,8 @@ Panel {
 
           NumberField {
             id: longField
+            width: durationsGrid.cellWidth
+            fieldWidth: durationsGrid.cellWidth
             label: strings.t("setting.longBreakMinutes")
             from: Model.LIMITS.longBreakMinutes.min
             to: Model.LIMITS.longBreakMinutes.max
@@ -448,6 +458,8 @@ Panel {
 
           NumberField {
             id: sessionsField
+            width: durationsGrid.cellWidth
+            fieldWidth: durationsGrid.cellWidth
             label: strings.t("setting.sessionsBeforeLongBreak")
             from: Model.LIMITS.sessionsBeforeLongBreak.min
             to: Model.LIMITS.sessionsBeforeLongBreak.max
