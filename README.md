@@ -53,9 +53,10 @@ h/l move along a row of chips, Enter or Space activates the chip, button, or tog
 
 With the Break screen toggle on, every monitor shows the break countdown while a
 break runs or is paused: the phase, the time left, a Pac-Man progress row, and
-three buttons. Pause/Resume (Space), +5 min (E), Stop (S). Esc or a click on the
-backdrop hides it for the rest of that break. Stop ends the break and leaves the
-next focus session ready.
+the panel's buttons with the same keys: Pause/Resume (Space), Reset (R), Skip (S or
+N), plus +5 min (E). Esc or a click on the backdrop hides it for the rest of that
+break. Skip ends the break and leaves the next focus session ready. Reset restarts
+the break at its full length, stopped, which also removes the screen.
 
 ## Chime
 
@@ -67,7 +68,7 @@ session ends. A missing player or file is logged and otherwise ignored. Test it 
 ## Phase changes
 
 A finished focus session starts its break at once, and a finished break starts the
-next focus session at once. Pause, Stop, Skip and Reset remain manual.
+next focus session at once. Pause, Skip and Reset remain manual.
 
 ## IPC
 

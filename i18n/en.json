@@ -9,7 +9,6 @@
   "action.resume": "Resume",
   "action.reset": "Reset",
   "action.skip": "Skip",
-  "action.stop": "Stop",
   "action.extend": "+5 min",
   "sessions.done": { "one": "%1 focus session done", "other": "%1 focus sessions done" },
   "section.focus": "Focus",

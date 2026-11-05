@@ -88,7 +88,7 @@ Item {
     enterPhase(next.phase, phase === "focus" ? completedFocus : next.completedFocus)
   }
 
-  // Stop on the break screen: end the break now. In a focus phase it is the
+  // Kept for the `stop` IPC method that earlier versions documented; the
   // same as skip.
   function stop() { skip() }
 

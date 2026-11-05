@@ -7,8 +7,10 @@ import qs.Ui
 import "Model.js" as Model
 
 // Full-screen break view, one per monitor, shown while a break runs or is
-// paused and the Break screen toggle is on. Esc or a click on the backdrop
-// hides it for the rest of the break; the service owns that flag.
+// paused and the Break screen toggle is on. Its actions mirror the panel's
+// (Pause/Resume, Reset, Skip) with the same keys, plus +5 min. Esc or a
+// click on the backdrop hides it for the rest of the break; the service
+// owns that flag.
 PanelWindow {
   id: win
 
@@ -72,8 +74,9 @@ PanelWindow {
       if (!win.service) return
       if (event.key === Qt.Key_Escape) { win.service.hideBreakScreen(); event.accepted = true }
       else if (event.key === Qt.Key_Space) { win.service.toggle(); event.accepted = true }
+      else if (event.text === "r" || event.text === "R") { win.service.reset(); event.accepted = true }
+      else if (event.text === "s" || event.text === "S" || event.text === "n" || event.text === "N") { win.service.skip(); event.accepted = true }
       else if (event.text === "e" || event.text === "E") { win.service.extend(); event.accepted = true }
-      else if (event.text === "s" || event.text === "S") { win.service.stop(); event.accepted = true }
     }
 
     // The content block swallows its own clicks so only the backdrop hides.
@@ -204,6 +207,26 @@ PanelWindow {
           onClicked: if (win.service) win.service.toggle()
         }
         Button {
+          iconText: ""
+          text: strings.t("action.reset") + " · R"
+          foreground: win.fg
+          fontFamily: win.fontFamily
+          bordered: true
+          horizontalPadding: Style.space(16)
+          verticalPadding: Style.spacing.controlPaddingY + Style.space(4)
+          onClicked: if (win.service) win.service.reset()
+        }
+        Button {
+          iconText: ""
+          text: strings.t("action.skip") + " · S"
+          foreground: win.fg
+          fontFamily: win.fontFamily
+          bordered: true
+          horizontalPadding: Style.space(16)
+          verticalPadding: Style.spacing.controlPaddingY + Style.space(4)
+          onClicked: if (win.service) win.service.skip()
+        }
+        Button {
           iconText: ""
           text: strings.t("action.extend") + " · E"
           foreground: win.fg
@@ -212,16 +235,6 @@ PanelWindow {
           horizontalPadding: Style.space(16)
           verticalPadding: Style.spacing.controlPaddingY + Style.space(4)
           onClicked: if (win.service) win.service.extend()
-        }
-        Button {
-          iconText: ""
-          text: strings.t("action.stop") + " · S"
-          foreground: win.fg
-          fontFamily: win.fontFamily
-          bordered: true
-          horizontalPadding: Style.space(16)
-          verticalPadding: Style.spacing.controlPaddingY + Style.space(4)
-          onClicked: if (win.service) win.service.stop()
         }
       }
 
