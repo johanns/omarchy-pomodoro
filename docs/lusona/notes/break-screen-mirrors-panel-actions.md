@@ -46,6 +46,9 @@ by the decision below for the break screen's action row.
 
 ## Current handoff
 
-- Authorized work: add Skip to the break screen by mirroring the panel's actions; local
-  commit included. Push not authorized.
-- Next action: owner tries the break screen and accepts, or asks for changes; push on request.
+- Authorized work: add Skip to the break screen by mirroring the panel's actions.
+- Delivery: `958728f` pushed to https://github.com/johanns/omarchy-pomodoro on the owner's
+  "push it", 2026-11-05.
+- Open follow-up (proposed, not authorized): `docs/macos/SPEC.md` still describes the break
+  screen as Pause/Resume, +5 min, and Stop.
+- Next action: none for this change.
