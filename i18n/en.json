@@ -25,6 +25,8 @@
   "setting.chime.description": "Play a short sound when a session ends.",
   "setting.breakScreen": "Break screen",
   "setting.breakScreen.description": "Cover every monitor during breaks with the countdown.",
+  "setting.pauseWhenLocked": "Pause when locked",
+  "setting.pauseWhenLocked.description": "Pause focus while the screen is locked, checked every minute, and continue it after you unlock.",
   "notify.focusDone.title": "Focus session done",
   "notify.focusDone.body": "Time for a %1 minute break.",
   "notify.breakDone.title": "Break over",

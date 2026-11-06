@@ -55,8 +55,8 @@ With the Break screen toggle on, every monitor shows the break countdown while a
 break runs or is paused: the phase, the time left, a Pac-Man progress row, and
 the panel's buttons with the same keys: Pause/Resume (Space), Reset (R), Skip (S or
 N), plus +5 min (E). Esc or a click on the backdrop hides it for the rest of that
-break. Skip ends the break and leaves the next focus session ready. Reset restarts
-the break at its full length, stopped, which also removes the screen.
+break. Skip ends the break and starts the next focus session. Reset restarts the
+break at its full length, stopped, which also removes the screen.
 
 ## Chime
 
@@ -68,7 +68,30 @@ session ends. A missing player or file is logged and otherwise ignored. Test it 
 ## Phase changes
 
 A finished focus session starts its break at once, and a finished break starts the
-next focus session at once. Pause, Skip and Reset remain manual.
+next focus session at once. Skip on a break also starts the next focus session; Skip
+on a focus session leaves the break that follows ready but stopped. Pause and Reset
+remain manual.
+
+## Pause when locked
+
+With the Pause when locked toggle on (the default), the plugin asks the shell
+whether the session is locked (`omarchy-shell lock isLocked`) once a minute while a
+focus session runs or is held. It does not watch mouse or keyboard activity.
+
+- A running focus session pauses at the first check that finds the session locked.
+  Up to a minute of locked time can count against it.
+- A break that ends while the session is locked leaves the next focus session at its
+  full length, stopped. The break end reads the lock state at that moment, so this
+  also covers a break that ran out during a suspend. Breaks keep running while locked.
+- The first check after you unlock continues the paused session or starts the held
+  one, up to a minute after you log in.
+- Start, Pause, Skip or Reset on a paused or held session hands it back to you: it is
+  no longer continued on unlock. Turning the toggle off does the same.
+- If the lock state cannot be read, the plugin logs a warning and treats the session
+  as unlocked.
+
+`status` reports the toggle as `pauseWhenLocked` and a session paused or held by the
+lock as `lockHeld`.
 
 ## IPC
 
@@ -77,8 +100,8 @@ omarchy-shell jg.pomodoro toggleTimer   # start or pause
 omarchy-shell jg.pomodoro start
 omarchy-shell jg.pomodoro pause
 omarchy-shell jg.pomodoro reset         # back to the start of the phase
-omarchy-shell jg.pomodoro skip          # next phase
-omarchy-shell jg.pomodoro stop          # same as skip; ends a break
+omarchy-shell jg.pomodoro skip          # next phase; on a break, starts focus
+omarchy-shell jg.pomodoro stop          # same as skip
 omarchy-shell jg.pomodoro extend        # five more minutes, up to 180 left
 omarchy-shell jg.pomodoro hideBreakScreen
 omarchy-shell jg.pomodoro resetCount    # focus sessions done back to 0
@@ -107,6 +130,7 @@ panel. Values outside the bounds are clamped.
 | `notify` | true | |
 | `chime` | false | |
 | `breakScreen` | false | |
+| `pauseWhenLocked` | true | |
 
 Keys from version 1.0 (`shortBreakMinutes`, `longBreakMinutes`,
 `sessionsBeforeLongBreak`, `autoStartBreaks`, `autoStartFocus`) are ignored. A

@@ -32,6 +32,13 @@ Item {
   property bool restored: false
   // Esc or Hide on the break screen keeps it away for the rest of the break.
   property bool breakScreenHidden: false
+  // The current focus phase is paused or held because the session is
+  // locked; a lock check that finds the session unlocked continues it. Any
+  // manual Start, Pause, Skip or Reset clears it.
+  property bool lockHeld: false
+  // Bumped by every saved state change. A lock read remembers the value it
+  // was started under, and its answer is ignored once the state has moved on.
+  property int stateEpoch: 0
 
   readonly property bool paused: !running && remainingMs < durationMs
   readonly property bool engaged: running || paused
@@ -47,14 +54,24 @@ Item {
     if (remainingMs <= 0) remainingMs = durationMs
     endsAt = Date.now() + remainingMs
     running = true
+    lockHeld = false
     persist()
   }
 
+  // Pause on a session the lock holds hands it back to the owner: it stays
+  // stopped, and unlocking no longer continues it.
   function pause() {
-    if (!running) return
+    if (!running) {
+      if (lockHeld) {
+        lockHeld = false
+        persist()
+      }
+      return
+    }
     remainingMs = Math.max(0, Math.round(endsAt - Date.now()))
     running = false
     endsAt = 0
+    lockHeld = false
     persist()
   }
 
@@ -73,6 +90,7 @@ Item {
     durationMs = Model.phaseDurationMs(phase, cfg)
     remainingMs = durationMs
     if (atStart) completedFocus = 0
+    lockHeld = false
     persist()
   }
 
@@ -82,10 +100,13 @@ Item {
   }
 
   // Straight to the next phase without finishing this one. A skipped focus
-  // session does not count.
+  // session does not count. Skip on a break starts the next focus session;
+  // Skip on focus leaves the break idle.
   function skip() {
+    const skipped = phase
     const next = Model.advance(phase, completedFocus)
-    enterPhase(next.phase, phase === "focus" ? completedFocus : next.completedFocus)
+    enterPhase(next.phase, skipped === "focus" ? completedFocus : next.completedFocus)
+    if (Model.skipStartsNext(skipped)) start()
   }
 
   // Kept for the `stop` IPC method that earlier versions documented; the
@@ -111,6 +132,7 @@ Item {
     endsAt = 0
     running = false
     breakScreenHidden = false
+    lockHeld = false
     durationMs = Model.phaseDurationMs(nextPhase, cfg)
     remainingMs = durationMs
     persist()
@@ -128,14 +150,54 @@ Item {
   }
 
   // A finished phase hands straight over: the break begins as the focus
-  // session ends, and the next focus session as the break ends.
+  // session ends, and the next focus session as the break ends. With "Pause
+  // when locked" on, the end of a break reads the lock state first: the
+  // last periodic check may be up to a minute old, and after a resume from
+  // suspend no check has run yet. The focus session is marked held while
+  // the read is out, so a shell restart in between keeps the hold.
   function complete() {
     const finished = phase
     const next = Model.advance(phase, completedFocus)
     if (cfg.notify) notifyCompleted(finished, next.phase)
     if (Model.shouldChime(cfg)) chime()
     enterPhase(next.phase, next.completedFocus)
+    if (Model.isBreak(finished) && cfg.pauseWhenLocked) {
+      lockHeld = true
+      persist()
+      breakEndRead.read(stateEpoch)
+    } else {
+      start()
+    }
+  }
+
+  // An unreadable answer counts as unlocked, so the timer behaves as it does
+  // with the toggle off.
+  function lockAnswer(text, exitCode) {
+    const locked = exitCode === 0 ? Model.parseLockAnswer(text) : null
+    if (locked === null) {
+      console.warn("jg.pomodoro: lock state unreadable (omarchy-shell lock isLocked, exit " + exitCode + ": " + String(text).trim() + "); treating the session as unlocked")
+      return false
+    }
+    return locked
+  }
+
+  function handleBreakEndRead(epoch, locked) {
+    if (epoch !== stateEpoch) return
+    if (Model.breakEndHolds(locked, cfg)) return
     start()
+  }
+
+  function handleLockCheck(epoch, locked) {
+    if (epoch !== stateEpoch) return
+    const left = running ? Math.round(endsAt - Date.now()) : remainingMs
+    const action = Model.lockCheck({ phase: phase, running: running, lockHeld: lockHeld, remainingMs: left }, locked, cfg)
+    if (action === "pause") {
+      pause()
+      lockHeld = true
+      persist()
+    } else if (action === "resume") {
+      start()
+    }
   }
 
   function notifyCompleted(finished, nextPhase) {
@@ -170,11 +232,15 @@ Item {
       completedFocus: completedFocus,
       focusMinutes: cfg.focusMinutes,
       breakLength: cfg.breakLength,
-      breakScreenShown: breakScreenShown
+      breakScreenShown: breakScreenShown,
+      pauseWhenLocked: cfg.pauseWhenLocked,
+      lockHeld: lockHeld
     })
   }
 
+  // Every state change a lock read could be stale against goes through here.
   function persist() {
+    stateEpoch += 1
     if (!restored) return
     stateFile.setText(Model.serializeState({
       phase: phase,
@@ -182,7 +248,8 @@ Item {
       endsAt: endsAt,
       durationMs: durationMs,
       remainingMs: running ? Math.max(0, Math.round(endsAt - Date.now())) : remainingMs,
-      completedFocus: completedFocus
+      completedFocus: completedFocus,
+      lockHeld: lockHeld
     }, Date.now()) + "\n")
   }
 
@@ -194,13 +261,23 @@ Item {
     endsAt = state.endsAt
     durationMs = state.durationMs
     remainingMs = state.remainingMs
+    lockHeld = state.lockHeld
     restored = true
     if (running) tick()
+    // A hold carried over a restart waits for the first periodic check, a
+    // minute in: during shell startup the lock service may not answer yet,
+    // or may not have recovered a lock that outlived the old shell, and an
+    // early "false" would start focus on the lock screen.
   }
 
   // A length chosen while the phase sits untouched at its start takes effect
-  // at once; a session under way or paused keeps its time.
+  // at once; a session under way or paused keeps its time. Turning "Pause
+  // when locked" off leaves a held session stopped for the owner to start.
   onCfgChanged: {
+    if (!cfg.pauseWhenLocked && lockHeld) {
+      lockHeld = false
+      persist()
+    }
     if (engaged) return
     durationMs = Model.phaseDurationMs(phase, cfg)
     remainingMs = durationMs
@@ -211,6 +288,65 @@ Item {
     running: root.running
     repeat: true
     onTriggered: root.tick()
+  }
+
+  // The lock check for "Pause when locked": once a minute while a focus
+  // session runs or the lock holds one. Breaks are not checked; their end
+  // reads the lock state itself.
+  Timer {
+    interval: 60000
+    running: root.restored && root.cfg.pauseWhenLocked && root.phase === "focus" && (root.running || root.lockHeld)
+    repeat: true
+    onTriggered: periodicRead.read(root.stateEpoch)
+  }
+
+  // One read of `omarchy-shell lock isLocked`. The shell does not publish
+  // its lock service to plugins, so its IPC answer is the lock state.
+  // `answered` carries the epoch of the latest request and the parsed state;
+  // a read that cannot start, fails, or prints anything but true or false
+  // answers unlocked. A request while a read is out joins that read: its
+  // answer is at most a moment older than a new one would be.
+  component LockRead: Process {
+    property int epoch: 0
+    // Counts reads, so a late "stopped running" from one read cannot end
+    // the next.
+    property int generation: 0
+    property bool done: true
+    signal answered(int epoch, bool locked)
+
+    function read(forEpoch) {
+      epoch = forEpoch
+      if (!done) return
+      generation += 1
+      done = false
+      running = true
+    }
+
+    function finish(forGeneration, exitCode) {
+      if (done || forGeneration !== generation) return
+      done = true
+      answered(epoch, root.lockAnswer(out.text, exitCode))
+    }
+
+    command: ["omarchy-shell", "lock", "isLocked"]
+    stdout: StdioCollector { id: out; waitForEnd: true }
+    onExited: (exitCode) => finish(generation, exitCode)
+    // A command that never starts emits no exit; it only stops running.
+    onRunningChanged: {
+      if (running) return
+      const g = generation
+      Qt.callLater(() => finish(g, -1))
+    }
+  }
+
+  LockRead {
+    id: periodicRead
+    onAnswered: (epoch, locked) => root.handleLockCheck(epoch, locked)
+  }
+
+  LockRead {
+    id: breakEndRead
+    onAnswered: (epoch, locked) => root.handleBreakEndRead(epoch, locked)
   }
 
   // The chime is a fixed system sound through pw-play. A missing player or

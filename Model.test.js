@@ -13,7 +13,8 @@ const names = [
   "nearestPreset", "normalizeSettings", "phaseMinutes", "phaseDurationMs", "isBreak", "advance",
   "extend", "shouldChime", "shouldShowBreakScreen",
   "remainingSeconds", "formatClock", "formatShort", "fraction",
-  "initialState", "serializeState", "parseState", "plainText"
+  "initialState", "serializeState", "parseState", "plainText",
+  "lockCheck", "breakEndHolds", "skipStartsNext", "parseLockAnswer"
 ]
 const M = {}
 vm.runInNewContext(source + "\n;this.__exports = { " + names.map((n) => `${n}: typeof ${n} === "undefined" ? undefined : ${n}`).join(", ") + " }", M)
@@ -56,8 +57,8 @@ test("settings: new keys with defaults, obsolete keys ignored", () => {
     shortBreakMinutes: 7, longBreakMinutes: 40, sessionsBeforeLongBreak: 2,
     autoStartBreaks: true, autoStartFocus: true
   })
-  same(s, { focusMinutes: 50, breakLength: "long", notify: false, chime: true, breakScreen: true })
-  same(Model.normalizeSettings(null), { focusMinutes: 25, breakLength: "short", notify: true, chime: false, breakScreen: false })
+  same(s, { focusMinutes: 50, breakLength: "long", notify: false, chime: true, breakScreen: true, pauseWhenLocked: true })
+  same(Model.normalizeSettings(null), { focusMinutes: 25, breakLength: "short", notify: true, chime: false, breakScreen: false, pauseWhenLocked: true })
   same(Model.normalizeSettings({ breakLength: "<b>x</b>" }).breakLength, "short")
   assert.equal(Model.normalizeSettings("<img src=x>").focusMinutes, 25)
 })
@@ -125,7 +126,7 @@ test("state v2 round-trips, keeps the duration, and a running timer keeps its en
   const raw = Model.serializeState({ phase: "break", running: true, endsAt: now + 90000, durationMs: 10 * MIN, remainingMs: 90000, completedFocus: 2 }, now)
   assert.equal(JSON.parse(raw).version, 2)
   const back = Model.parseState(raw, s, now + 30000)
-  same(back, { phase: "break", running: true, endsAt: now + 90000, durationMs: 10 * MIN, remainingMs: 60000, completedFocus: 2 })
+  same(back, { phase: "break", running: true, endsAt: now + 90000, durationMs: 10 * MIN, remainingMs: 60000, completedFocus: 2, lockHeld: false })
   const expired = Model.parseState(raw, s, now + 500000)
   assert.equal(expired.running, true)
   assert.equal(expired.remainingMs, 0)
@@ -134,7 +135,7 @@ test("state v2 round-trips, keeps the duration, and a running timer keeps its en
 test("state v1 migrates: break phases merge, duration comes from settings", () => {
   const s = Model.normalizeSettings({ breakLength: "long" })
   const v1 = JSON.stringify({ version: 1, phase: "shortBreak", running: false, endsAt: 0, remainingMs: 2 * MIN, completedFocus: 3, savedAt: 0 })
-  same(Model.parseState(v1, s, 0), { phase: "break", running: false, endsAt: 0, durationMs: 15 * MIN, remainingMs: 2 * MIN, completedFocus: 3 })
+  same(Model.parseState(v1, s, 0), { phase: "break", running: false, endsAt: 0, durationMs: 15 * MIN, remainingMs: 2 * MIN, completedFocus: 3, lockHeld: false })
   const v1focus = JSON.stringify({ version: 1, phase: "focus", running: false, endsAt: 0, remainingMs: 25 * MIN, completedFocus: 1 })
   assert.equal(Model.parseState(v1focus, s, 0).durationMs, 25 * MIN)
   assert.equal(Model.parseState(v1focus, s, 0).phase, "focus")
@@ -173,7 +174,7 @@ test("a running state whose end lies more than 180 minutes ahead is discarded", 
 test("state parsing rejects garbage and bounds values", () => {
   const s = Model.normalizeSettings({})
   const fresh = Model.initialState(s)
-  same(fresh, { phase: "focus", running: false, endsAt: 0, durationMs: 25 * MIN, remainingMs: 25 * MIN, completedFocus: 0 })
+  same(fresh, { phase: "focus", running: false, endsAt: 0, durationMs: 25 * MIN, remainingMs: 25 * MIN, completedFocus: 0, lockHeld: false })
   same(Model.parseState("not json", s, 0), fresh)
   same(Model.parseState('{"version":2,"phase":"<b>x</b>"}', s, 0), fresh)
   same(Model.parseState('{"version":3,"phase":"focus"}', s, 0), fresh)
@@ -192,6 +193,85 @@ test("a paused session longer than the default survives restore before settings 
   assert.equal(back.running, false)
   assert.equal(back.remainingMs, 45 * MIN)
   assert.equal(back.durationMs, 90 * MIN)
+})
+
+test("settings: pauseWhenLocked defaults to on; only false turns it off", () => {
+  assert.equal(Model.normalizeSettings({}).pauseWhenLocked, true)
+  assert.equal(Model.normalizeSettings(null).pauseWhenLocked, true)
+  assert.equal(Model.normalizeSettings({ pauseWhenLocked: "x" }).pauseWhenLocked, true)
+  assert.equal(Model.normalizeSettings({ pauseWhenLocked: false }).pauseWhenLocked, false)
+  assert.equal(Model.normalizeSettings({ pauseWhenLocked: "false" }).pauseWhenLocked, false)
+  assert.equal(Model.normalizeSettings({ pauseWhenLocked: true }).pauseWhenLocked, true)
+})
+
+test("lock check: a locked session pauses running focus; unlock continues only what the lock paused", () => {
+  const on = Model.normalizeSettings({})
+  const off = Model.normalizeSettings({ pauseWhenLocked: false })
+  const runningFocus = { phase: "focus", running: true, lockHeld: false, remainingMs: 60000 }
+  const lockPaused = { phase: "focus", running: false, lockHeld: true }
+  const ownerPaused = { phase: "focus", running: false, lockHeld: false }
+  const runningBreak = { phase: "break", running: true, lockHeld: false }
+  assert.equal(Model.lockCheck(runningFocus, true, on), "pause")
+  assert.equal(Model.lockCheck(runningFocus, false, on), "none")
+  assert.equal(Model.lockCheck(lockPaused, false, on), "resume")
+  assert.equal(Model.lockCheck(lockPaused, true, on), "none")
+  assert.equal(Model.lockCheck(ownerPaused, false, on), "none")
+  assert.equal(Model.lockCheck(ownerPaused, true, on), "none")
+  // breaks keep running while locked
+  assert.equal(Model.lockCheck(runningBreak, true, on), "none")
+  // toggle off: no change either way
+  assert.equal(Model.lockCheck(runningFocus, true, off), "none")
+  assert.equal(Model.lockCheck(lockPaused, false, off), "none")
+})
+
+test("lock check: a running focus session whose time has run out is left to finish, not paused", () => {
+  const on = Model.normalizeSettings({})
+  const ranOut = { phase: "focus", running: true, lockHeld: false, remainingMs: 0 }
+  const lastSecond = { phase: "focus", running: true, lockHeld: false, remainingMs: 1000 }
+  assert.equal(Model.lockCheck(ranOut, true, on), "none")
+  assert.equal(Model.lockCheck(lastSecond, true, on), "pause")
+})
+
+test("break end: focus is held while locked and starts at once otherwise", () => {
+  const on = Model.normalizeSettings({})
+  const off = Model.normalizeSettings({ pauseWhenLocked: false })
+  assert.equal(Model.breakEndHolds(true, on), true)
+  assert.equal(Model.breakEndHolds(false, on), false)
+  assert.equal(Model.breakEndHolds(true, off), false)
+  assert.equal(Model.breakEndHolds(false, off), false)
+})
+
+test("skip: from a break the next focus session starts; from focus the break stays idle", () => {
+  assert.equal(Model.skipStartsNext("break"), true)
+  assert.equal(Model.skipStartsNext("focus"), false)
+  // the skipped break leaves the count unchanged
+  same(Model.advance("break", 3), { phase: "focus", completedFocus: 3 })
+})
+
+test("lock answer: true and false parse; anything else is unreadable", () => {
+  assert.equal(Model.parseLockAnswer("true\n"), true)
+  assert.equal(Model.parseLockAnswer(" false "), false)
+  assert.equal(Model.parseLockAnswer(""), null)
+  assert.equal(Model.parseLockAnswer("error: no target"), null)
+  assert.equal(Model.parseLockAnswer(undefined), null)
+})
+
+test("state: a lock hold round-trips; a 1.1.0 file and invalid holds read as not held", () => {
+  const s = Model.normalizeSettings({})
+  const now = 1_700_000_000_000
+  const held = Model.serializeState({ phase: "focus", running: false, endsAt: 0, durationMs: 25 * MIN, remainingMs: 12 * MIN, completedFocus: 2, lockHeld: true }, now)
+  assert.equal(JSON.parse(held).version, 2)
+  same(Model.parseState(held, s, now), { phase: "focus", running: false, endsAt: 0, durationMs: 25 * MIN, remainingMs: 12 * MIN, completedFocus: 2, lockHeld: true })
+  // written by 1.1.0: no lockHeld field
+  const old = JSON.stringify({ version: 2, phase: "focus", running: false, endsAt: 0, durationMs: 25 * MIN, remainingMs: 25 * MIN, completedFocus: 4, savedAt: now })
+  same(Model.parseState(old, s, now), { phase: "focus", running: false, endsAt: 0, durationMs: 25 * MIN, remainingMs: 25 * MIN, completedFocus: 4, lockHeld: false })
+  // a hold only means something on a focus phase that is not running
+  const onBreak = JSON.stringify({ version: 2, phase: "break", running: false, endsAt: 0, durationMs: 5 * MIN, remainingMs: 5 * MIN, completedFocus: 0, lockHeld: true })
+  assert.equal(Model.parseState(onBreak, s, now).lockHeld, false)
+  const whileRunning = JSON.stringify({ version: 2, phase: "focus", running: true, endsAt: now + MIN, durationMs: 25 * MIN, remainingMs: MIN, completedFocus: 0, lockHeld: true })
+  assert.equal(Model.parseState(whileRunning, s, now).lockHeld, false)
+  assert.equal(JSON.parse(Model.serializeState({ phase: "break", running: false, endsAt: 0, durationMs: 5 * MIN, remainingMs: 5 * MIN, completedFocus: 0, lockHeld: true }, now)).lockHeld, false)
+  assert.equal(Model.parseState('{"version":2,"phase":"focus","running":false,"durationMs":60000,"remainingMs":60000,"completedFocus":0,"lockHeld":"yes"}', s, now).lockHeld, false)
 })
 
 test("plainText neutralizes markup headed for shared sinks", () => {

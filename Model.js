@@ -53,7 +53,8 @@ function normalizeSettings(raw) {
     breakLength: Object.prototype.hasOwnProperty.call(BREAK_LENGTHS, s.breakLength) ? s.breakLength : DEFAULT_BREAK,
     notify: asBool(s.notify, true),
     chime: asBool(s.chime, false),
-    breakScreen: asBool(s.breakScreen, false)
+    breakScreen: asBool(s.breakScreen, false),
+    pauseWhenLocked: asBool(s.pauseWhenLocked, true)
   }
 }
 
@@ -83,6 +84,41 @@ function extend(remainingMs, durationMs) {
 }
 
 const shouldChime = (settings) => settings.chime === true
+
+// What a periodic lock check does to the timer, with "Pause when locked" on:
+// "pause" stops a running focus session while the session is locked;
+// "resume" continues a focus session the lock paused or held once the
+// session is unlocked; "none" otherwise. Breaks keep running while locked,
+// and a focus session the owner paused is never continued here. A running
+// session with no time left is about to finish, so it is not paused: a
+// pause would store zero, skip the phase change, and restart focus at full
+// length on unlock.
+function lockCheck(state, locked, settings) {
+  if (settings.pauseWhenLocked !== true || state.phase !== "focus") return "none"
+  if (state.running && locked === true) return state.remainingMs > 0 ? "pause" : "none"
+  if (!state.running && state.lockHeld === true && locked === false) return "resume"
+  return "none"
+}
+
+// Whether a break that has just ended leaves the next focus session held
+// instead of starting it.
+const breakEndHolds = (locked, settings) => settings.pauseWhenLocked === true && locked === true
+
+// Skip on a break starts the focus session that follows; Skip on focus
+// leaves the break it leads to idle.
+const skipStartsNext = (phase) => isBreak(phase)
+
+// The answer of `omarchy-shell lock isLocked`: true, false, or null when it
+// is neither.
+function parseLockAnswer(text) {
+  const answer = String(text ?? "").trim()
+  if (answer === "true") return true
+  if (answer === "false") return false
+  return null
+}
+
+// A lock hold only applies to a focus phase that is not running.
+const validLockHeld = (phase, running, lockHeld) => lockHeld === true && phase === "focus" && running !== true
 
 // The break screen shows while a break is running or paused, the toggle is
 // on, and the user has not hidden it for this break.
@@ -126,7 +162,8 @@ const initialState = (settings) => ({
   endsAt: 0,
   durationMs: phaseDurationMs("focus", settings),
   remainingMs: phaseDurationMs("focus", settings),
-  completedFocus: 0
+  completedFocus: 0,
+  lockHeld: false
 })
 
 function serializeState(state, now) {
@@ -138,6 +175,7 @@ function serializeState(state, now) {
     durationMs: Math.round(state.durationMs),
     remainingMs: Math.round(state.remainingMs),
     completedFocus: state.completedFocus,
+    lockHeld: validLockHeld(state.phase, state.running, state.lockHeld),
     savedAt: Math.round(now)
   })
 }
@@ -174,7 +212,9 @@ function parseState(raw, settings, now) {
     endsAt: 0,
     durationMs: durationMs > 0 ? durationMs : phaseDurationMs(data.phase, settings),
     remainingMs: clampMs(data.remainingMs, MAX_REMAINING_MS),
-    completedFocus: clampInt(data.completedFocus, 0, MAX_COMPLETED, 0)
+    completedFocus: clampInt(data.completedFocus, 0, MAX_COMPLETED, 0),
+    // Files from 1.1.0 have no lockHeld field and read as not held.
+    lockHeld: validLockHeld(data.phase, data.running === true, data.lockHeld)
   }
   if (state.running) {
     const endsAt = Number(data.endsAt)

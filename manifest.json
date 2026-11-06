@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "jg.pomodoro",
   "name": "Pomodoro",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Johanns Gregorian",
   "license": "MIT",
   "description": "A Pomodoro timer for the Omarchy shell: focus and break countdowns in the bar, a control panel with one-tap presets, and a notification, chime, or full-screen break view when a session ends.",
@@ -31,7 +31,8 @@
       "breakLength": "short",
       "notify": true,
       "chime": false,
-      "breakScreen": false
+      "breakScreen": false,
+      "pauseWhenLocked": true
     },
     "schema": [
       {
@@ -63,6 +64,12 @@
         "type": "boolean",
         "label": "Cover every monitor with a break view during breaks",
         "defaultValue": false
+      },
+      {
+        "key": "pauseWhenLocked",
+        "type": "boolean",
+        "label": "Pause focus while the session is locked, checked every minute",
+        "defaultValue": true
       }
     ]
   }

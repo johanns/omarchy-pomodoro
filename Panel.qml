@@ -44,8 +44,8 @@ Panel {
 
   // Keyboard cursor: a row name and a column inside it. Rows run top to
   // bottom; Left/Right walks the chips of the actions, Focus and Break rows.
-  readonly property var rows: ["actions", "focus", "break", "notify", "chime", "breakScreen"]
-  readonly property var rowWidths: ({ actions: 3, focus: focusOptions.length, break: breakOptions.length, notify: 1, chime: 1, breakScreen: 1 })
+  readonly property var rows: ["actions", "focus", "break", "notify", "chime", "breakScreen", "pauseWhenLocked"]
+  readonly property var rowWidths: ({ actions: 3, focus: focusOptions.length, break: breakOptions.length, notify: 1, chime: 1, breakScreen: 1, pauseWhenLocked: 1 })
   property string row: "actions"
   property int col: 0
   property bool cursorActive: false
@@ -461,7 +461,7 @@ Panel {
           spacing: Style.space(6)
 
           Repeater {
-            model: ["notify", "chime", "breakScreen"]
+            model: ["notify", "chime", "breakScreen", "pauseWhenLocked"]
 
             Toggle {
               required property string modelData

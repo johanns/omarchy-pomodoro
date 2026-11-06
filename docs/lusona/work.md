@@ -12,6 +12,7 @@ execution capacity while retaining their actual state and blocker. Completion re
 
 | Item / change | State | Completion condition | Current blocker or next action |
 | --- | --- | --- | --- |
+| [Pause focus while locked; Skip on a break starts focus](specs/20261106-hold-focus-until-return.md) | Review | AC1–AC15 met, tests green, lock and suspend cases tried on the owner's desktop, owner accepted, pushed | Owner trials (lock, suspend, restart), acceptance, push |
 | [Preset durations, break choice, and break screen](specs/20261104-preset-durations-and-break-screen.md) | Done | AC1–AC14 met, tests green, inspected on the owner's desktop, owner accepted, pushed | Delivered 2026-11-04 as 9061f23 and 297d3ed |
 
 ## Icebox
