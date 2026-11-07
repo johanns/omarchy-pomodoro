@@ -21,16 +21,16 @@ Requires Omarchy with the Quickshell shell (`omarchy-shell`).
 
 ## Files
 
-| File | Role |
-|------|------|
-| `manifest.json` | Plugin manifest (`service` + `bar-widget` kinds) |
-| `Service.qml` | The single timer. Holds phase, remaining time, completed sessions; sends notifications; saves state |
-| `Panel.qml` | Bar widget and `KeyboardPanel` with controls and settings |
-| `BreakScreen.qml` | Full-screen break view, one window per monitor, driven by the service |
-| `Model.js` | Pure logic: settings bounds, phase order, formatting, state (de)serialization |
-| `Model.test.js` | `node Model.test.js` runs the logic tests |
-| `tests/lock-trials.py` | Runs the "Pause when locked" cases against the live shell through the test IPC methods |
-| `i18n/en.json` | Strings. Add `<code>.json` per Omarchy language code |
+| File                   | Role                                                                                                |
+| ---------------------- | --------------------------------------------------------------------------------------------------- |
+| `manifest.json`        | Plugin manifest (`service` + `bar-widget` kinds)                                                    |
+| `Service.qml`          | The single timer. Holds phase, remaining time, completed sessions; sends notifications; saves state |
+| `Panel.qml`            | Bar widget and `KeyboardPanel` with controls and settings                                           |
+| `BreakScreen.qml`      | Full-screen break view, one window per monitor, driven by the service                               |
+| `Model.js`             | Pure logic: settings bounds, phase order, formatting, state (de)serialization                       |
+| `Model.test.js`        | `node Model.test.js` runs the logic tests                                                           |
+| `tests/lock-trials.py` | Runs the "Pause when locked" cases against the live shell through the test IPC methods              |
+| `i18n/en.json`         | Strings. Add `<code>.json` per Omarchy language code                                                |
 
 The timer lives in the service, not the widget, because the bar builds one
 widget per monitor. Runtime state is saved to
@@ -146,14 +146,14 @@ o.bind("SUPER ALT, P", "omarchy-shell jg.pomodoro toggleTimer", "Pomodoro start/
 Stored inline on the bar entry in `~/.config/omarchy/shell.json`, written by the
 panel. Values outside the bounds are clamped.
 
-| Key | Default | Values |
-|-----|---------|--------|
-| `focusMinutes` | 25 | 15, 25, 50, 90 (other numbers snap to the nearest) |
-| `breakLength` | `short` | `short` (5 min), `long` (15 min) |
-| `notify` | true | |
-| `chime` | false | |
-| `breakScreen` | false | |
-| `pauseWhenLocked` | true | |
+| Key               | Default | Values                                             |
+| ----------------- | ------- | -------------------------------------------------- |
+| `focusMinutes`    | 25      | 15, 25, 50, 90 (other numbers snap to the nearest) |
+| `breakLength`     | `short` | `short` (5 min), `long` (15 min)                   |
+| `notify`          | true    |                                                    |
+| `chime`           | false   |                                                    |
+| `breakScreen`     | false   |                                                    |
+| `pauseWhenLocked` | true    |                                                    |
 
 Keys from version 1.0 (`shortBreakMinutes`, `longBreakMinutes`,
 `sessionsBeforeLongBreak`, `autoStartBreaks`, `autoStartFocus`) are ignored. A

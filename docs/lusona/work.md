@@ -10,10 +10,10 @@ execution capacity while retaining their actual state and blocker. Completion re
 
 ## Active queue
 
-| Item / change | State | Completion condition | Current blocker or next action |
-| --- | --- | --- | --- |
-| [Pause focus while locked; Skip on a break starts focus](specs/20261106-hold-focus-until-return.md) | Done | AC1–AC16 met, tests green, simulated trials passed, owner accepted, pushed | Delivered 2026-11-07 as 4fd784e and 9aa52d9 |
-| [Preset durations, break choice, and break screen](specs/20261104-preset-durations-and-break-screen.md) | Done | AC1–AC14 met, tests green, inspected on the owner's desktop, owner accepted, pushed | Delivered 2026-11-04 as 9061f23 and 297d3ed |
+| Item / change                                                                                           | State | Completion condition                                                                | Current blocker or next action              |
+| ------------------------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------- | ------------------------------------------- |
+| [Pause focus while locked; Skip on a break starts focus](specs/20261106-hold-focus-until-return.md)     | Done  | AC1–AC16 met, tests green, simulated trials passed, owner accepted, pushed          | Delivered 2026-11-07 as 4fd784e and 9aa52d9 |
+| [Preset durations, break choice, and break screen](specs/20261104-preset-durations-and-break-screen.md) | Done  | AC1–AC14 met, tests green, inspected on the owner's desktop, owner accepted, pushed | Delivered 2026-11-04 as 9061f23 and 297d3ed |
 
 ## Icebox
 
@@ -21,7 +21,7 @@ Parked outcomes are excluded from active planning and default batch selection. M
 back to Active queue only on explicit reactivation; retain their lifecycle state and links.
 
 | Item / change | State when parked | Completion condition | Parking reason / revisit condition |
-| --- | --- | --- | --- |
+| ------------- | ----------------- | -------------------- | ---------------------------------- |
 
 No parked work.
 

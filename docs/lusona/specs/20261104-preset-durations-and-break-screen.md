@@ -209,9 +209,9 @@ Context: Pomodoro plugin for the Omarchy shell (`jg.pomodoro`), published at htt
      `phaseCompleted`; break options from `Model.BREAK_LENGTHS`; settings writes keep only
      known keys; plain initial values with a comment.
   10. Confirmed: test gaps. Fixed: preset ties, extend with duration at the cap, migration and
-     far-future cases; 15 tests pass.
-  Re-verified after the fixes and a shell restart: 15 tests, validate exit 0, IPC start, pause,
-  extend, stop, resetCount, break windows on both monitors, clean shell log.
+      far-future cases; 15 tests pass.
+      Re-verified after the fixes and a shell restart: 15 tests, validate exit 0, IPC start, pause,
+      extend, stop, resetCount, break windows on both monitors, clean shell log.
 - Auto-start (AC13, 2026-11-04 14:03): a state file with a focus session ending 15 s ahead was
   loaded by a shell restart; when it reached zero the service entered the break running
   (`05:00`, `completedFocus` 1, `breakScreenShown` true) and both break windows mapped. The
