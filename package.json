@@ -13,14 +13,14 @@
 	"license": "MIT",
 	"author": "Johanns Gregorian",
 	"type": "commonjs",
-	"main": "Model.js",
 	"directories": {
 		"doc": "docs",
 		"test": "tests"
 	},
 	"scripts": {
 		"format": "biome format --write",
-		"lint": "biome lint --write"
+		"lint": "biome lint --write",
+		"test": "node Model.test.js"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.6"
