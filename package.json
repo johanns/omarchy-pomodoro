@@ -1,0 +1,28 @@
+{
+	"name": "jg.pomodoro",
+	"version": "1.0.0",
+	"description": "Pomodoro for the Omarchy shell",
+	"homepage": "https://github.com/johanns/omarchy-pomodoro#readme",
+	"bugs": {
+		"url": "https://github.com/johanns/omarchy-pomodoro/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/johanns/omarchy-pomodoro.git"
+	},
+	"license": "MIT",
+	"author": "Johanns Gregorian",
+	"type": "commonjs",
+	"main": "Model.js",
+	"directories": {
+		"doc": "docs",
+		"test": "tests"
+	},
+	"scripts": {
+		"format": "biome format --write",
+		"lint": "biome lint --write"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.6.6"
+	}
+}
