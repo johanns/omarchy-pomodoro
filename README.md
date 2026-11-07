@@ -28,9 +28,12 @@ Requires Omarchy with the Quickshell shell (`omarchy-shell`).
 | `Panel.qml`            | Bar widget and `KeyboardPanel` with controls and settings                                           |
 | `BreakScreen.qml`      | Full-screen break view, one window per monitor, driven by the service                               |
 | `Model.js`             | Pure logic: settings bounds, phase order, formatting, state (de)serialization                       |
-| `Model.test.js`        | `node Model.test.js` runs the logic tests                                                           |
+| `Model.test.js`        | `npm test` runs the logic tests                                                                     |
 | `tests/lock-trials.py` | Runs the "Pause when locked" cases against the live shell through the test IPC methods              |
 | `i18n/en.json`         | Strings. Add `<code>.json` per Omarchy language code                                                |
+| `package.json`         | Development scripts and the Biome dev dependency; not needed to run the plugin                      |
+| `biome.json`           | Biome format and lint rules for JS, JSON and HTML                                                   |
+| `.qmlformat.ini`       | qmlformat settings for the QML files                                                                |
 
 The timer lives in the service, not the widget, because the bar builds one
 widget per monitor. Runtime state is saved to
@@ -161,12 +164,48 @@ version 1.0 state file is migrated on the first start.
 
 ## Development
 
+Tools: Node.js and npm for the scripts below (`npm install` installs Biome 2.6.6),
+and the Qt 6 QML tools from `qt6-declarative`, which Omarchy already installs. The
+`qmlformat` and `qmllint` on `PATH` may be the Qt 5 versions from
+`qt5-declarative`; the scripts call the Qt 6 ones in `/usr/lib/qt6/bin`.
+
+| Command              | What it does                                                                  |
+| -------------------- | ----------------------------------------------------------------------------- |
+| `npm test`           | Runs the logic tests in `Model.test.js` under node                            |
+| `npm run format`     | Formats JS, JSON and HTML with Biome                                          |
+| `npm run lint`       | Lints JS, JSON and HTML with Biome and applies its safe fixes                 |
+| `npm run format:qml` | Formats the QML files in place with qmlformat                                 |
+| `npm run lint:qml`   | Lints the QML files with qmllint against the shell's `qs.Commons` and `qs.Ui` |
+
+Before a commit, `npx biome check .` reports no errors and `npm test` passes.
+
+Code standards:
+
+- JS, JSON and HTML: Biome's recommended rules, tab indentation, double quotes,
+  semicolons. Every `if`, `else` and loop body has braces (`useBlockStatements` is
+  an error). Biome formats `docs/` but does not lint it.
+- `Model.js` runs in Qt's QML JavaScript engine as well as node. Use only language
+  features that Qt 6's engine supports, and check new ones under `qml6`; for
+  example, `Object.hasOwn` is undefined in Qt 6.12. For this file Biome's
+  `noUnusedVariables` is off (QML reads its top-level declarations through the
+  import) and `noPrototypeBuiltins` is off (its fix uses `Object.hasOwn`).
+- QML: qmlformat with `.qmlformat.ini`: 2-space indentation as in Omarchy's shell,
+  semicolons, no column limit. qmlformat does not add braces, so write `if` bodies
+  with braces by hand.
+- qmllint needs the shell's modules under a `qs` directory; `lint:qml` links
+  `.qml-imports/qs` to `/usr/share/omarchy/shell` (ignored by git). It exits 0 with
+  warnings. The current `missing-property` warnings on `QObject` and the
+  `uncreatable-type` warning on `PanelWindow` come from the shell's and
+  Quickshell's type information. The `unqualified` warnings are references from
+  nested components to outer ids, fixed by `pragma ComponentBehavior: Bound` and
+  required properties.
+
 Saving `i18n/*.json` applies at once: the catalogs are watched files. Edits to
 `Panel.qml`, `Service.qml` or `Model.js` need `omarchy restart shell`. The shell
 does rescan the plugin on save, but Quickshell 0.3.2 does not expose
 `Qt.clearComponentCache`, so the rescan rebuilds the widget from the cached
 component and the saved change does not show.
 
-Run the logic tests with `node Model.test.js`. After `omarchy restart shell`,
-`python3 tests/lock-trials.py` checks the lock behavior in the live shell; it changes
-the timer, saves the state file first, and prints the command to restore it.
+After `omarchy restart shell`, `python3 tests/lock-trials.py` checks the lock
+behavior in the live shell; it changes the timer, saves the state file first, and
+prints the command to restore it.
