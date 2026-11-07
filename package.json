@@ -18,9 +18,11 @@
 		"test": "tests"
 	},
 	"scripts": {
-		"format": "biome format --write",
-		"lint": "biome lint --write",
-		"test": "node Model.test.js"
+		"formatL:js": "biome format --write",
+		"lint:js": "biome lint --write",
+		"test": "node Model.test.js",
+		"format:qml": "/usr/lib/qt6/bin/qmlformat --inplace *.qml",
+		"lint:qml": "mkdir -p .qml-imports && ln -sfn /usr/share/omarchy/shell .qml-imports/qs && /usr/lib/qt6/bin/qmllint -I .qml-imports *.qml"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.6"
