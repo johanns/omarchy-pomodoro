@@ -3,8 +3,10 @@
 Plugin id: `jg.pomodoro`. A focus/break countdown in the bar with a control panel.
 
 Focus sessions of 15, 25, 50 or 90 minutes, breaks of 5 (short) or 15 (long)
-minutes, picked with one tap in the panel. When a session ends the plugin can send
-a desktop notification, play a chime, and cover every monitor with a break screen.
+minutes, picked with one tap in the panel. Each finished phase starts the next one.
+When a session ends the plugin can send a desktop notification, play a chime, and
+cover every monitor with a break screen. While the session is locked, focus time
+pauses.
 
 ## Install
 
@@ -27,6 +29,7 @@ Requires Omarchy with the Quickshell shell (`omarchy-shell`).
 | `BreakScreen.qml` | Full-screen break view, one window per monitor, driven by the service |
 | `Model.js` | Pure logic: settings bounds, phase order, formatting, state (de)serialization |
 | `Model.test.js` | `node Model.test.js` runs the logic tests |
+| `tests/lock-trials.py` | Runs the "Pause when locked" cases against the live shell through the test IPC methods |
 | `i18n/en.json` | Strings. Add `<code>.json` per Omarchy language code |
 
 The timer lives in the service, not the widget, because the bar builds one
@@ -125,6 +128,9 @@ omarchy-shell jg.pomodoro resetCount    # focus sessions done back to 0
 omarchy-shell jg.pomodoro chime         # play the chime now
 omarchy-shell jg.pomodoro toggle        # open or close the panel
 omarchy-shell jg.pomodoro status        # JSON
+omarchy-shell jg.pomodoro simulateLock locked|unlocked|off  # testing, see above
+omarchy-shell jg.pomodoro checkLock     # testing: run the lock check now
+omarchy-shell jg.pomodoro finishPhase   # testing: end the current phase now
 ```
 
 For a Hyprland keybinding in `~/.config/hypr/bindings.lua`, use the command string
@@ -161,4 +167,6 @@ does rescan the plugin on save, but Quickshell 0.3.2 does not expose
 `Qt.clearComponentCache`, so the rescan rebuilds the widget from the cached
 component and the saved change does not show.
 
-Run the logic tests with `node Model.test.js`.
+Run the logic tests with `node Model.test.js`. After `omarchy restart shell`,
+`python3 tests/lock-trials.py` checks the lock behavior in the live shell; it changes
+the timer, saves the state file first, and prints the command to restore it.
