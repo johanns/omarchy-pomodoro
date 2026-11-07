@@ -172,8 +172,8 @@ and the Qt 6 QML tools from `qt6-declarative`, which Omarchy already installs. T
 | Command              | What it does                                                                  |
 | -------------------- | ----------------------------------------------------------------------------- |
 | `npm test`           | Runs the logic tests in `Model.test.js` under node                            |
-| `npm run format`     | Formats JS, JSON and HTML with Biome                                          |
-| `npm run lint`       | Lints JS, JSON and HTML with Biome and applies its safe fixes                 |
+| `npm run format:js`  | Formats JS, JSON and HTML with Biome                                          |
+| `npm run lint:js`    | Lints JS, JSON and HTML with Biome and applies its safe fixes                 |
 | `npm run format:qml` | Formats the QML files in place with qmlformat                                 |
 | `npm run lint:qml`   | Lints the QML files with qmllint against the shell's `qs.Commons` and `qs.Ui` |
 

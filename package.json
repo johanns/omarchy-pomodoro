@@ -18,7 +18,7 @@
 		"test": "tests"
 	},
 	"scripts": {
-		"formatL:js": "biome format --write",
+		"format:js": "biome format --write",
 		"lint:js": "biome lint --write",
 		"test": "node Model.test.js",
 		"format:qml": "/usr/lib/qt6/bin/qmlformat --inplace *.qml",
