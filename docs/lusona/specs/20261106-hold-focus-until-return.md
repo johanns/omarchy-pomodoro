@@ -48,44 +48,44 @@ leaves focus idle) this change amends. Product context: [product.md](../product.
 
 ### Acceptance criteria
 
-- [ ] AC1: The panel's Behavior section shows a fourth toggle, "Pause when locked", after
+- [x] AC1: The panel's Behavior section shows a fourth toggle, "Pause when locked", after
   Notification, Chime and Break screen. It persists as a boolean setting, defaults to on, and
   is reachable by the panel's keyboard navigation. A 1.1.0 `shell.json` entry without the key
   reads as on.
-- [ ] AC2: With the toggle on, the plugin checks the lock state at least once every 60
+- [x] AC2: With the toggle on, the plugin checks the lock state at least once every 60
   seconds. It checks mouse and keyboard activity never.
-- [ ] AC3: With the toggle on, a running focus session pauses at the first check that finds
+- [x] AC3: With the toggle on, a running focus session pauses at the first check that finds
   the session locked, keeping its remaining time. Up to 60 seconds of locked time may count
   against it (the check interval).
-- [ ] AC4: With the toggle on, a break that ends while the session is locked leaves the
+- [x] AC4: With the toggle on, a break that ends while the session is locked leaves the
   plugin in the focus phase at its full configured length, not running. The bar and panel
   show it as an idle focus phase; no new marker. The notification and chime for the finished
   break behave as today. Breaks themselves keep running while locked.
-- [ ] AC5: After a suspend during which a running break passed its end, resuming the machine
+- [x] AC5: After a suspend during which a running break passed its end, resuming the machine
   behaves as AC4: focus does not start while the lock screen is up.
-- [ ] AC6: With the toggle on, the first check that finds the session unlocked continues a
+- [x] AC6: With the toggle on, the first check that finds the session unlocked continues a
   focus session paused by AC3 from its remaining time, or starts one held by AC4 at its full
   length. A focus session the owner paused is never continued by a check.
-- [ ] AC7: While focus is paused or held by the lock, Start, Pause, Skip and Reset (panel,
+- [x] AC7: While focus is paused or held by the lock, Start, Pause, Skip and Reset (panel,
   bar, keyboard, IPC) act as they do on a paused or idle focus phase, and the lock no longer
   owns the session: a later unlock check does not start it.
-- [ ] AC8: Turning the toggle off stops the checks. A focus session paused or held by the
+- [x] AC8: Turning the toggle off stops the checks. A focus session paused or held by the
   lock at that moment stays paused or idle until the owner starts it.
-- [ ] AC9: A pause or hold caused by the lock survives a shell restart
+- [x] AC9: A pause or hold caused by the lock survives a shell restart
   (`omarchy restart shell`) and continues under AC6.
-- [ ] AC10: If the lock state cannot be read (`omarchy-shell` missing or failing), the plugin
+- [x] AC10: If the lock state cannot be read (`omarchy-shell` missing or failing), the plugin
   logs it and treats the session as unlocked: focus runs and hands over as today.
-- [ ] AC11: Skip or Stop during a break, running or paused (panel, bar middle click, break
+- [x] AC11: Skip or Stop during a break, running or paused (panel, bar middle click, break
   screen, keyboard, IPC `skip`/`stop`), starts the next focus session at once at its full
   length, whatever the toggle. The skipped break does not change the completed-focus count.
   Skip during focus is unchanged: the break it leads to stays idle.
-- [ ] AC12: `omarchy-shell jg.pomodoro status` reports the toggle and whether focus is paused
+- [x] AC12: `omarchy-shell jg.pomodoro status` reports the toggle and whether focus is paused
   or held by the lock.
-- [ ] AC13: With the toggle off, focus and the break-to-focus handover behave as in 1.1.0.
-- [ ] AC14: `omarchy plugin validate` passes. `node Model.test.js` passes, with cases for the
+- [x] AC13: With the toggle off, focus and the break-to-focus handover behave as in 1.1.0.
+- [x] AC14: `omarchy plugin validate` passes. `node Model.test.js` passes, with cases for the
   new setting, the lock-check decisions, the break-end handover, Skip on a break, and the
   saved lock state, including a 1.1.0 state file.
-- [ ] AC15: README describes the toggle, the 60-second check and its effect on timing, and
+- [x] AC15: README describes the toggle, the 60-second check and its effect on timing, and
   the new Skip behavior on a break.
 - [x] AC16: The lock behavior can be tried without locking the screen or waiting: IPC
   `simulateLock locked|unlocked|off` replaces lock reads until `off` or a shell restart and
@@ -107,6 +107,8 @@ leaves focus idle) this change amends. Product context: [product.md](../product.
     reverses the previous spec's Q5 detail ("Stop ... leave the next focus session idle")
     and the README text "Skip ends the break and leaves the next focus session ready".
   - TDD: targeted (owner, 2026-11-06, question dialog).
+  - Owner, 2026-11-07: review finding D2 accepted as a limitation; suspend during a running
+    focus session left as is (suspended time counts against focus); change accepted for push.
   - Owner, 2026-11-07: "we need to be able to simulate, otherwise I'm sitting around". Added
     AC16 test hooks; `parseLockOverride` is test-first under the targeted policy.
 - Assumptions and unresolved questions:
@@ -218,19 +220,9 @@ leaves focus idle) this change amends. Product context: [product.md](../product.
 
 ## Current handoff
 
-- Authorized work: implementation of AC1–AC15 (owner, 2026-11-06), local commits. Push needs
-  separate authority.
-- Completed and remaining work: implementation, tests, validate and independent review done;
-  D1 fixed, D2 accepted as a limitation pending the owner. Remaining: owner trials and
-  acceptance, the suspend-during-focus question, push.
-- Try it:
-  - `python3 tests/lock-trials.py` (about 30 s; changes the live timer, saves it first and
-    prints the restore command).
-  - Panel: Behavior shows "Pause when locked", on; toggling it off while a session is held
-    leaves it stopped (AC8).
-  - Optional real check: lock with `omarchy system lock`, unlock after a minute or more;
-    `journalctl --user -f | grep pomodoro` shows no "lock state unreadable".
-- Human acceptance and delivery: not given.
-- Next action: owner checks the panel toggle (AC1, AC8), answers D2 and the
-  suspend-during-focus question, and accepts or reports defects; push after acceptance with
-  authority.
+- Authorized work: complete. Implementation, test hooks, and push authorized by the owner.
+- Completed and remaining work: AC1–AC16 met; D1 fixed; D2 and suspend during focus accepted
+  as is. Nothing remains.
+- Human acceptance and delivery: owner accepted 2026-11-07; delivered to `origin/main` as
+  4fd784e and 9aa52d9.
+- Next action: none. The macOS spec follow-up (Q4) is separate work.
