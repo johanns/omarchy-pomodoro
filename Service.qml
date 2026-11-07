@@ -39,6 +39,10 @@ Item {
   // Bumped by every saved state change. A lock read remembers the value it
   // was started under, and its answer is ignored once the state has moved on.
   property int stateEpoch: 0
+  // Testing only, set through the `simulateLock` IPC method and never saved:
+  // true or false replaces every lock read with that answer; null reads the
+  // real lock state.
+  property var lockOverride: null
 
   readonly property bool paused: !running && remainingMs < durationMs
   readonly property bool engaged: running || paused
@@ -200,6 +204,22 @@ Item {
     }
   }
 
+  // Test hooks behind the IPC methods simulateLock, checkLock and
+  // finishPhase, so the lock behavior can be tried without locking the
+  // screen or waiting out a phase.
+  function simulateLock(value) {
+    lockOverride = Model.parseLockOverride(value)
+    console.log("jg.pomodoro: simulated lock state " + (lockOverride === null ? "off" : (lockOverride ? "locked" : "unlocked")))
+  }
+
+  function checkLock() { periodicRead.read(stateEpoch) }
+
+  // The current phase ends now, as if its countdown had reached zero.
+  function finishPhase() {
+    remainingMs = 0
+    complete()
+  }
+
   function notifyCompleted(finished, nextPhase) {
     const minutes = Commons.I18n.formatNumber(Model.phaseMinutes(nextPhase, cfg))
     const focusDone = finished === "focus"
@@ -234,7 +254,8 @@ Item {
       breakLength: cfg.breakLength,
       breakScreenShown: breakScreenShown,
       pauseWhenLocked: cfg.pauseWhenLocked,
-      lockHeld: lockHeld
+      lockHeld: lockHeld,
+      simulatedLock: lockOverride === null ? "off" : (lockOverride ? "locked" : "unlocked")
     })
   }
 
@@ -315,6 +336,11 @@ Item {
     signal answered(int epoch, bool locked)
 
     function read(forEpoch) {
+      if (root.lockOverride !== null) {
+        const simulated = root.lockOverride
+        Qt.callLater(() => answered(forEpoch, simulated))
+        return
+      }
       epoch = forEpoch
       if (!done) return
       generation += 1

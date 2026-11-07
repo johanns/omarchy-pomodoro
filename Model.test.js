@@ -14,7 +14,7 @@ const names = [
   "extend", "shouldChime", "shouldShowBreakScreen",
   "remainingSeconds", "formatClock", "formatShort", "fraction",
   "initialState", "serializeState", "parseState", "plainText",
-  "lockCheck", "breakEndHolds", "skipStartsNext", "parseLockAnswer"
+  "lockCheck", "breakEndHolds", "skipStartsNext", "parseLockAnswer", "parseLockOverride"
 ]
 const M = {}
 vm.runInNewContext(source + "\n;this.__exports = { " + names.map((n) => `${n}: typeof ${n} === "undefined" ? undefined : ${n}`).join(", ") + " }", M)
@@ -230,6 +230,15 @@ test("lock check: a running focus session whose time has run out is left to fini
   const lastSecond = { phase: "focus", running: true, lockHeld: false, remainingMs: 1000 }
   assert.equal(Model.lockCheck(ranOut, true, on), "none")
   assert.equal(Model.lockCheck(lastSecond, true, on), "pause")
+})
+
+test("lock override for testing: locked, unlocked, or back to the real lock state", () => {
+  assert.equal(Model.parseLockOverride("locked"), true)
+  assert.equal(Model.parseLockOverride(" Unlocked\n"), false)
+  assert.equal(Model.parseLockOverride("off"), null)
+  assert.equal(Model.parseLockOverride(""), null)
+  assert.equal(Model.parseLockOverride(undefined), null)
+  assert.equal(Model.parseLockOverride("yes"), null)
 })
 
 test("break end: focus is held while locked and starts at once otherwise", () => {

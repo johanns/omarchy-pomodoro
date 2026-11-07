@@ -117,6 +117,16 @@ function parseLockAnswer(text) {
   return null
 }
 
+// The argument of the `simulateLock` IPC method, for testing: "locked" or
+// "unlocked" replaces every lock read with that answer; anything else
+// (normally "off") goes back to reading the real lock state.
+function parseLockOverride(value) {
+  const v = String(value ?? "").trim().toLowerCase()
+  if (v === "locked") return true
+  if (v === "unlocked") return false
+  return null
+}
+
 // A lock hold only applies to a focus phase that is not running.
 const validLockHeld = (phase, running, lockHeld) => lockHeld === true && phase === "focus" && running !== true
 

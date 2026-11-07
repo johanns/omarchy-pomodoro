@@ -1,7 +1,7 @@
 # Spec 20261106-hold-focus-until-return: Pause focus while the session is locked; Skip on a break starts focus
 
 Created: 2026-11-06
-Updated: 2026-11-06
+Updated: 2026-11-07
 
 Kind: feature
 Work item: [work.md](../work.md)
@@ -87,6 +87,11 @@ leaves focus idle) this change amends. Product context: [product.md](../product.
   saved lock state, including a 1.1.0 state file.
 - [ ] AC15: README describes the toggle, the 60-second check and its effect on timing, and
   the new Skip behavior on a break.
+- [x] AC16: The lock behavior can be tried without locking the screen or waiting: IPC
+  `simulateLock locked|unlocked|off` replaces lock reads until `off` or a shell restart and
+  shows in `status` as `simulatedLock`; `checkLock` runs the periodic check now;
+  `finishPhase` ends the current phase as if it ran out. `tests/lock-trials.py` runs the
+  cases through them and reports pass or fail. README documents both.
 
 ### Decisions and uncertainty
 
@@ -102,6 +107,8 @@ leaves focus idle) this change amends. Product context: [product.md](../product.
     reverses the previous spec's Q5 detail ("Stop ... leave the next focus session idle")
     and the README text "Skip ends the break and leaves the next focus session ready".
   - TDD: targeted (owner, 2026-11-06, question dialog).
+  - Owner, 2026-11-07: "we need to be able to simulate, otherwise I'm sitting around". Added
+    AC16 test hooks; `parseLockOverride` is test-first under the targeted policy.
 - Assumptions and unresolved questions:
   - A1 (accepted by the owner, 2026-11-06): at the moment a break ends, the plugin reads the
     lock state then rather than relying on the last 60-second check. Without it, a break that ends
@@ -162,8 +169,10 @@ leaves focus idle) this change amends. Product context: [product.md](../product.
   - `omarchy restart shell`, then `omarchy-shell jg.pomodoro status`: the running focus session
     restored (16 done) and `pauseWhenLocked: true`, `lockHeld: false` appear. No plugin errors in
     the journal.
-  - Live, unlocked: a break ended at 12:39:54; the break-end lock read answered and focus
-    started at once (status: focus running, 17 done). Covers AC3/AC13 for the unlocked path.
+  - Live, unlocked (inferred, not observed directly): the chime logged at 12:39:54, about five
+    minutes after the focus session that raised the count to 17 ended, and at 12:40:5x status
+    showed focus running with 24:30 left. This matches a break end whose lock read answered
+    unlocked and started focus. The read itself was not logged.
   - Scratch Quickshell instance with the `LockRead` pattern: `omarchy-shell lock isLocked`
     answers `false` with exit 0; `exited` is handled before the deferred never-started fallback;
     a missing command answers through the fallback (exit -1, unlocked).
@@ -185,8 +194,27 @@ leaves focus idle) this change amends. Product context: [product.md](../product.
   - Suspend during a running focus session (not a break): the shell locks just before suspend
     and no check runs in between, so the suspended time counts against focus. No criterion
     covers this; open question for the owner.
+- Simulated trials (2026-11-07, live shell, `tests/lock-trials.py` and manual IPC):
+  - `parseLockOverride` test red ("is not a function"), then green; 23 tests passed;
+    `omarchy plugin validate` exit 0.
+  - 14 of 14 checks passed: AC3 (locked check pauses running focus, time kept; running
+    break left alone), AC4 (break ends while locked: focus held at full length, count
+    unchanged by the hold; locked check keeps it), AC6 (unlocked check continues lock-paused
+    focus from its time and starts held focus; owner-paused focus stays paused), AC7 (Start,
+    Pause, Reset on a lock-paused or held session; a later unlocked check does nothing),
+    AC11 (Skip on a running break and Stop on a paused break start focus without changing the
+    count; Skip on focus leaves the break idle), AC3/AC13 (break ends unlocked: focus starts).
+  - AC9: focus held, `omarchy restart shell`: still held, `simulatedLock` back to `off`;
+    `checkLock` against the real lock state (unlocked) started it. No "unreadable" warnings.
+  - Reset on a held focus session also clears the session count, because a held session is
+    at its start; this is the existing Reset rule for an idle focus phase (AC7 as written).
+  - The owner's timer state was saved before the trials and restored after (focus running,
+    21 done, same end time).
+  - Still not simulated: AC5 with a real suspend (the break-end path it uses is the one AC4
+    exercises), AC8 (toggle off on a held session, needs the panel), AC10 (unreadable lock
+    state), AC1 panel look.
 - Changes: `Model.js`, `Model.test.js`, `Service.qml`, `Panel.qml`, `i18n/en.json`,
-  `manifest.json` (1.2.0), `README.md`.
+  `manifest.json` (1.2.0), `README.md`, `tests/lock-trials.py`.
 
 ## Current handoff
 
@@ -196,12 +224,13 @@ leaves focus idle) this change amends. Product context: [product.md](../product.
   D1 fixed, D2 accepted as a limitation pending the owner. Remaining: owner trials and
   acceptance, the suspend-during-focus question, push.
 - Try it:
-  - Panel: Behavior shows "Pause when locked", on.
-  - Start focus, lock with `omarchy system lock`, wait over a minute,
-    unlock: the session was paused while locked and continues within a minute of unlocking.
-  - Let a break end while locked: after unlock, focus starts within a minute at full length.
-  - Skip on a running break: focus starts at once.
-  - `journalctl --user -f | grep pomodoro` should show no "lock state unreadable" warning.
+  - `python3 tests/lock-trials.py` (about 30 s; changes the live timer, saves it first and
+    prints the restore command).
+  - Panel: Behavior shows "Pause when locked", on; toggling it off while a session is held
+    leaves it stopped (AC8).
+  - Optional real check: lock with `omarchy system lock`, unlock after a minute or more;
+    `journalctl --user -f | grep pomodoro` shows no "lock state unreadable".
 - Human acceptance and delivery: not given.
-- Next action: owner runs the trials above, answers the suspend-during-focus question, and
-  accepts or reports defects; push after acceptance with authority.
+- Next action: owner checks the panel toggle (AC1, AC8), answers D2 and the
+  suspend-during-focus question, and accepts or reports defects; push after acceptance with
+  authority.

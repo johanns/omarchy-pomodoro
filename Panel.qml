@@ -72,6 +72,9 @@ Panel {
   function hideBreakScreen() { if (service) service.hideBreakScreen() }
   function resetCount() { if (service) service.resetCount() }
   function playChime() { if (service) service.chime() }
+  function simulateLock(value) { if (service) service.simulateLock(value) }
+  function checkLock() { if (service) service.checkLock() }
+  function finishPhase() { if (service) service.finishPhase() }
 
   // Writes carry only the keys this version knows, so obsolete ones from
   // version 1.0 drop out of the bar entry on the first change.
@@ -151,6 +154,11 @@ Panel {
     function hideBreakScreen(): void { root.hideBreakScreen() }
     function resetCount(): void { root.resetCount() }
     function chime(): void { root.playChime() }
+    // Testing: fake the lock state ("locked", "unlocked", "off"), run a lock
+    // check now, and end the current phase now.
+    function simulateLock(value: string): void { root.simulateLock(value) }
+    function checkLock(): void { root.checkLock() }
+    function finishPhase(): void { root.finishPhase() }
     function status(): string { return root.service ? root.service.statusText() : "{}" }
   }
 

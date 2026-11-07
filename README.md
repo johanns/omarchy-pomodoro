@@ -93,6 +93,23 @@ focus session runs or is held. It does not watch mouse or keyboard activity.
 `status` reports the toggle as `pauseWhenLocked` and a session paused or held by the
 lock as `lockHeld`.
 
+### Testing without locking the screen
+
+Three IPC methods let you try the lock behavior in seconds:
+
+```sh
+omarchy-shell jg.pomodoro simulateLock locked    # every lock read answers "locked"
+omarchy-shell jg.pomodoro simulateLock unlocked  # every lock read answers "unlocked"
+omarchy-shell jg.pomodoro simulateLock off       # read the real lock state again
+omarchy-shell jg.pomodoro checkLock              # run the once-a-minute check now
+omarchy-shell jg.pomodoro finishPhase            # end the current phase as if it ran out
+```
+
+The simulated state is not saved; a shell restart returns to the real lock state.
+`status` reports it as `simulatedLock`. `python3 tests/lock-trials.py` runs every
+case through these methods and reports pass or fail; it changes the live timer and
+saves the state file first.
+
 ## IPC
 
 ```
