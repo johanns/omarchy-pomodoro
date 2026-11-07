@@ -1,76 +1,69 @@
 {
-  "schemaVersion": 1,
-  "id": "jg.pomodoro",
-  "name": "Pomodoro",
-  "version": "1.2.0",
-  "author": "Johanns Gregorian",
-  "license": "MIT",
-  "description": "A Pomodoro timer for the Omarchy shell: focus and break countdowns in the bar, a control panel with one-tap presets, and a notification, chime, or full-screen break view when a session ends.",
-  "kinds": [
-    "service",
-    "bar-widget"
-  ],
-  "keepLoaded": true,
-  "entryPoints": {
-    "service": "Service.qml",
-    "barWidget": "Panel.qml"
-  },
-  "barWidget": {
-    "displayName": "Pomodoro",
-    "description": "Focus and break countdown with presets, start, pause, reset and skip.",
-    "category": "Time",
-    "aliases": [
-      "timer",
-      "focus timer",
-      "tomato"
-    ],
-    "allowMultiple": false,
-    "defaultSection": "centerEnd",
-    "defaults": {
-      "focusMinutes": 25,
-      "breakLength": "short",
-      "notify": true,
-      "chime": false,
-      "breakScreen": false,
-      "pauseWhenLocked": true
-    },
-    "schema": [
-      {
-        "key": "focusMinutes",
-        "type": "number",
-        "label": "Focus session length in minutes: 15, 25, 50 or 90",
-        "defaultValue": 25
-      },
-      {
-        "key": "breakLength",
-        "type": "string",
-        "label": "Break length: short (5 min) or long (15 min)",
-        "defaultValue": "short"
-      },
-      {
-        "key": "notify",
-        "type": "boolean",
-        "label": "Send a desktop notification when a session ends",
-        "defaultValue": true
-      },
-      {
-        "key": "chime",
-        "type": "boolean",
-        "label": "Play a short sound when a session ends",
-        "defaultValue": false
-      },
-      {
-        "key": "breakScreen",
-        "type": "boolean",
-        "label": "Cover every monitor with a break view during breaks",
-        "defaultValue": false
-      },
-      {
-        "key": "pauseWhenLocked",
-        "type": "boolean",
-        "label": "Pause focus while the session is locked, checked every minute",
-        "defaultValue": true
-      }
-    ]
-  }
+	"schemaVersion": 1,
+	"id": "jg.pomodoro",
+	"name": "Pomodoro",
+	"version": "1.2.0",
+	"author": "Johanns Gregorian",
+	"license": "MIT",
+	"description": "A Pomodoro timer for the Omarchy shell: focus and break countdowns in the bar, a control panel with one-tap presets, and a notification, chime, or full-screen break view when a session ends.",
+	"kinds": ["service", "bar-widget"],
+	"keepLoaded": true,
+	"entryPoints": {
+		"service": "Service.qml",
+		"barWidget": "Panel.qml"
+	},
+	"barWidget": {
+		"displayName": "Pomodoro",
+		"description": "Focus and break countdown with presets, start, pause, reset and skip.",
+		"category": "Time",
+		"aliases": ["timer", "focus timer", "tomato"],
+		"allowMultiple": false,
+		"defaultSection": "centerEnd",
+		"defaults": {
+			"focusMinutes": 25,
+			"breakLength": "short",
+			"notify": true,
+			"chime": false,
+			"breakScreen": false,
+			"pauseWhenLocked": true
+		},
+		"schema": [
+			{
+				"key": "focusMinutes",
+				"type": "number",
+				"label": "Focus session length in minutes: 15, 25, 50 or 90",
+				"defaultValue": 25
+			},
+			{
+				"key": "breakLength",
+				"type": "string",
+				"label": "Break length: short (5 min) or long (15 min)",
+				"defaultValue": "short"
+			},
+			{
+				"key": "notify",
+				"type": "boolean",
+				"label": "Send a desktop notification when a session ends",
+				"defaultValue": true
+			},
+			{
+				"key": "chime",
+				"type": "boolean",
+				"label": "Play a short sound when a session ends",
+				"defaultValue": false
+			},
+			{
+				"key": "breakScreen",
+				"type": "boolean",
+				"label": "Cover every monitor with a break view during breaks",
+				"defaultValue": false
+			},
+			{
+				"key": "pauseWhenLocked",
+				"type": "boolean",
+				"label": "Pause focus while the session is locked, checked every minute",
+				"defaultValue": true
+			}
+		]
+	}
 }

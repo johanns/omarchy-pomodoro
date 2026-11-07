@@ -702,7 +702,7 @@
             /* Option content CSS: target platform or project theme. Prefix classes, e.g. app-. */
         </style>
         <script>
-            (function () {
+            (() => {
                 var d = document.documentElement;
                 try {
                     var t = localStorage.getItem("lusona-theme");
@@ -906,14 +906,12 @@
             </aside>
         </div>
         <script>
-            (function () {
+            (() => {
                 var d = document.documentElement,
-                    $$ = function (s) {
-                        return [].slice.call(document.querySelectorAll(s));
-                    };
+                    $$ = (s) => [].slice.call(document.querySelectorAll(s));
                 var tt = document.querySelector("[data-theme-toggle]");
                 if (tt)
-                    tt.onclick = function () {
+                    tt.onclick = () => {
                         var dark = getComputedStyle(d).colorScheme === "dark";
                         d.dataset.theme = dark ? "light" : "dark";
                         try {
@@ -926,31 +924,31 @@
                 var nb = document.querySelector("[data-notes]"),
                     na = document.querySelector(".lv-notes");
                 if (nb && na)
-                    nb.onclick = function () {
+                    nb.onclick = () => {
                         na.hidden = !na.hidden;
                         nb.setAttribute("aria-pressed", String(!na.hidden));
                     };
                 var g = document.querySelector(".lv-grid"),
                     f = g ? $$(".lv-grid>figure") : [];
                 function pick(i) {
-                    f.forEach(function (x, j) {
+                    f.forEach((x, j) => {
                         x.classList.toggle("is-current", j === i);
                     });
                 }
-                $$("[data-view]").forEach(function (b) {
-                    b.onclick = function () {
+                $$("[data-view]").forEach((b) => {
+                    b.onclick = () => {
                         if (g)
                             g.classList.toggle(
                                 "is-focus",
                                 b.dataset.view === "focus",
                             );
-                        $$("[data-view]").forEach(function (x) {
+                        $$("[data-view]").forEach((x) => {
                             x.setAttribute("aria-pressed", String(x === b));
                         });
                     };
                 });
-                f.forEach(function (x, j) {
-                    x.addEventListener("click", function () {
+                f.forEach((x, j) => {
+                    x.addEventListener("click", () => {
                         pick(j);
                     });
                 });
@@ -967,7 +965,7 @@
                     location.hash
                         .slice(1)
                         .split("&")
-                        .forEach(function (s) {
+                        .forEach((s) => {
                             if (!s) return;
                             var i = s.indexOf("=");
                             p[dec(i < 0 ? s : s.slice(0, i))] =
@@ -978,9 +976,7 @@
                 function btn(sw, val) {
                     return [].slice
                         .call(sw.querySelectorAll("button[data-value]"))
-                        .filter(function (x) {
-                            return x.dataset.value.toLowerCase() === val;
-                        })[0];
+                        .filter((x) => x.dataset.value.toLowerCase() === val)[0];
                 }
                 function set(kind, val, save) {
                     var sw = document.querySelector(
@@ -993,10 +989,10 @@
                         ),
                         b = btn(sw, val);
                     if (!b) return;
-                    bs.forEach(function (x) {
+                    bs.forEach((x) => {
                         x.setAttribute("aria-pressed", String(x === b));
                     });
-                    $$("[data-" + kind + "]").forEach(function (el) {
+                    $$("[data-" + kind + "]").forEach((el) => {
                         if (el.closest("[data-switch]")) return;
                         if (
                             el
@@ -1044,16 +1040,14 @@
                             "",
                             "#" +
                                 Object.keys(p)
-                                    .map(function (k) {
-                                        return p[k] === "" ? k : k + "=" + p[k];
-                                    })
+                                    .map((k) => p[k] === "" ? k : k + "=" + p[k])
                                     .join("&"),
                         );
                     }
                 }
                 function init() {
                     var p = params();
-                    $$("[data-switch]").forEach(function (g) {
+                    $$("[data-switch]").forEach((g) => {
                         var k = g.dataset.switch,
                             first =
                                 g.querySelector("[data-recommended]") ||
@@ -1067,8 +1061,8 @@
                         );
                     });
                 }
-                $$("[data-switch] button[data-value]").forEach(function (b) {
-                    b.onclick = function () {
+                $$("[data-switch] button[data-value]").forEach((b) => {
+                    b.onclick = () => {
                         set(
                             b.closest("[data-switch]").dataset.switch,
                             b.dataset.value,
@@ -1078,7 +1072,7 @@
                 });
                 init();
                 window.addEventListener("hashchange", init);
-                document.addEventListener("keydown", function (e) {
+                document.addEventListener("keydown", (e) => {
                     var i = "abcd".indexOf(e.key.toLowerCase());
                     if (
                         i < 0 ||
