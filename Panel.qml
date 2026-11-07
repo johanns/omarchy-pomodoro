@@ -14,8 +14,7 @@ Panel {
   ipcTarget: "jg.pomodoro"
   manageIpc: false
 
-  readonly property var service: bar && bar.shell && typeof bar.shell.serviceFor === "function"
-    ? bar.shell.serviceFor("jg.pomodoro") : null
+  readonly property var service: bar && bar.shell && typeof bar.shell.serviceFor === "function" ? bar.shell.serviceFor("jg.pomodoro") : null
   readonly property bool vertical: bar ? bar.vertical === true : false
   readonly property var cfg: Model.normalizeSettings(settings)
 
@@ -32,12 +31,8 @@ Panel {
   readonly property string clockText: localizeDigits(Model.formatClock(remainingMs))
   readonly property string shortText: localizeDigits(Model.formatShort(remainingMs))
   readonly property string phaseTitle: strings.t("phase." + phase)
-  readonly property string statusTitle: running ? strings.t("status.running")
-    : (paused ? strings.t("status.paused") : strings.t("status.ready"))
-  readonly property string tooltip: running
-    ? strings.t("tooltip.running").arg(phaseTitle).arg(clockText)
-    : (paused ? strings.t("tooltip.paused").arg(phaseTitle).arg(clockText)
-      : strings.t("tooltip.idle").arg(phaseTitle))
+  readonly property string statusTitle: running ? strings.t("status.running") : (paused ? strings.t("status.paused") : strings.t("status.ready"))
+  readonly property string tooltip: running ? strings.t("tooltip.running").arg(phaseTitle).arg(clockText) : (paused ? strings.t("tooltip.paused").arg(phaseTitle).arg(clockText) : strings.t("tooltip.idle").arg(phaseTitle))
 
   readonly property var focusOptions: Model.FOCUS_PRESETS
   readonly property var breakOptions: Object.keys(Model.BREAK_LENGTHS)
@@ -45,121 +40,231 @@ Panel {
   // Keyboard cursor: a row name and a column inside it. Rows run top to
   // bottom; Left/Right walks the chips of the actions, Focus and Break rows.
   readonly property var rows: ["actions", "focus", "break", "notify", "chime", "breakScreen", "pauseWhenLocked"]
-  readonly property var rowWidths: ({ actions: 3, focus: focusOptions.length, break: breakOptions.length, notify: 1, chime: 1, breakScreen: 1, pauseWhenLocked: 1 })
+  readonly property var rowWidths: ({
+      actions: 3,
+      focus: focusOptions.length,
+      break: breakOptions.length,
+      notify: 1,
+      chime: 1,
+      breakScreen: 1,
+      pauseWhenLocked: 1
+    })
   property string row: "actions"
   property int col: 0
   property bool cursorActive: false
 
-  Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
+  Commons.Translations {
+    id: strings
+    directory: Qt.resolvedUrl("i18n")
+  }
 
   function localizeDigits(text) {
-    return String(text).split("")
-      .map((ch) => ch >= "0" && ch <= "9" ? Commons.I18n.formatNumber(Number(ch)) : ch)
-      .join("")
+    return String(text).split("").map(ch => ch >= "0" && ch <= "9" ? Commons.I18n.formatNumber(Number(ch)) : ch).join("");
   }
 
   function pushSettings() {
-    if (service) service.settings = root.settings
+    if (service)
+      service.settings = root.settings;
   }
 
-  function startTimer() { if (service) service.start() }
-  function pauseTimer() { if (service) service.pause() }
-  function toggleTimer() { if (service) service.toggle() }
-  function resetTimer() { if (service) service.reset() }
-  function skipPhase() { if (service) service.skip() }
-  function stopPhase() { if (service) service.stop() }
-  function extendPhase() { if (service) service.extend() }
-  function hideBreakScreen() { if (service) service.hideBreakScreen() }
-  function resetCount() { if (service) service.resetCount() }
-  function playChime() { if (service) service.chime() }
-  function simulateLock(value) { if (service) service.simulateLock(value) }
-  function checkLock() { if (service) service.checkLock() }
-  function finishPhase() { if (service) service.finishPhase() }
+  function startTimer() {
+    if (service)
+      service.start();
+  }
+  function pauseTimer() {
+    if (service)
+      service.pause();
+  }
+  function toggleTimer() {
+    if (service)
+      service.toggle();
+  }
+  function resetTimer() {
+    if (service)
+      service.reset();
+  }
+  function skipPhase() {
+    if (service)
+      service.skip();
+  }
+  function stopPhase() {
+    if (service)
+      service.stop();
+  }
+  function extendPhase() {
+    if (service)
+      service.extend();
+  }
+  function hideBreakScreen() {
+    if (service)
+      service.hideBreakScreen();
+  }
+  function resetCount() {
+    if (service)
+      service.resetCount();
+  }
+  function playChime() {
+    if (service)
+      service.chime();
+  }
+  function simulateLock(value) {
+    if (service)
+      service.simulateLock(value);
+  }
+  function checkLock() {
+    if (service)
+      service.checkLock();
+  }
+  function finishPhase() {
+    if (service)
+      service.finishPhase();
+  }
 
   // Writes carry only the keys this version knows, so obsolete ones from
   // version 1.0 drop out of the bar entry on the first change.
   function updateSetting(key, value) {
-    const entry = { id: root.moduleName }
-    for (const k of Object.keys(root.cfg)) if (k in root.settings) entry[k] = root.settings[k]
-    entry[key] = value
-    root.settings = entry
+    const entry = {
+      id: root.moduleName
+    };
+    for (const k of Object.keys(root.cfg))
+      if (k in root.settings)
+        entry[k] = root.settings[k];
+    entry[key] = value;
+    root.settings = entry;
     if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
-      root.bar.shell.updateEntryInline(root.moduleName, entry)
+      root.bar.shell.updateEntryInline(root.moduleName, entry);
   }
 
   function breakLabel(value) {
-    return strings.t(value === "long" ? "break.long" : "break.short").arg(Commons.I18n.formatNumber(Model.BREAK_LENGTHS[value]))
+    return strings.t(value === "long" ? "break.long" : "break.short").arg(Commons.I18n.formatNumber(Model.BREAK_LENGTHS[value]));
   }
 
   function placeCursor(nextRow, nextCol) {
-    cursorActive = true
-    row = nextRow
-    col = Math.max(0, Math.min(rowWidths[nextRow] - 1, nextCol))
+    cursorActive = true;
+    row = nextRow;
+    col = Math.max(0, Math.min(rowWidths[nextRow] - 1, nextCol));
   }
 
   function moveCursor(dx, dy) {
-    if (!cursorActive) { cursorActive = true; return }
-    if (dy !== 0) {
-      const index = Math.max(0, Math.min(rows.length - 1, rows.indexOf(row) + dy))
-      // Landing on a chip row keeps the current choice under the cursor.
-      const next = rows[index]
-      let landing = 0
-      if (next === "focus") landing = focusOptions.indexOf(cfg.focusMinutes)
-      else if (next === "break") landing = breakOptions.indexOf(cfg.breakLength)
-      placeCursor(next, next === row ? col : landing)
-      return
+    if (!cursorActive) {
+      cursorActive = true;
+      return;
     }
-    placeCursor(row, col + dx)
+    if (dy !== 0) {
+      const index = Math.max(0, Math.min(rows.length - 1, rows.indexOf(row) + dy));
+      // Landing on a chip row keeps the current choice under the cursor.
+      const next = rows[index];
+      let landing = 0;
+      if (next === "focus")
+        landing = focusOptions.indexOf(cfg.focusMinutes);
+      else if (next === "break")
+        landing = breakOptions.indexOf(cfg.breakLength);
+      placeCursor(next, next === row ? col : landing);
+      return;
+    }
+    placeCursor(row, col + dx);
   }
 
   // Enter or Space before the cursor is placed acts on the first control,
   // which is what the key hint promises.
   function activateCursor() {
-    if (!cursorActive) { toggleTimer(); return }
-    if (row === "actions") {
-      if (col === 0) toggleTimer()
-      else if (col === 1) resetTimer()
-      else skipPhase()
+    if (!cursorActive) {
+      toggleTimer();
+      return;
     }
-    else if (row === "focus") updateSetting("focusMinutes", focusOptions[col])
-    else if (row === "break") updateSetting("breakLength", breakOptions[col])
-    else updateSetting(row, !cfg[row])
+    if (row === "actions") {
+      if (col === 0)
+        toggleTimer();
+      else if (col === 1)
+        resetTimer();
+      else
+        skipPhase();
+    } else if (row === "focus")
+      updateSetting("focusMinutes", focusOptions[col]);
+    else if (row === "break")
+      updateSetting("breakLength", breakOptions[col]);
+    else
+      updateSetting(row, !cfg[row]);
   }
 
   function handleTextKey(text) {
-    if (text === "r" || text === "R") resetTimer()
-    else if (text === "s" || text === "S" || text === "n" || text === "N") skipPhase()
+    if (text === "r" || text === "R")
+      resetTimer();
+    else if (text === "s" || text === "S" || text === "n" || text === "N")
+      skipPhase();
   }
 
   onSettingsChanged: pushSettings()
   onServiceChanged: pushSettings()
   Component.onCompleted: pushSettings()
-  onOpenedChanged: if (opened) { cursorActive = false; row = "actions"; col = 0 }
+  onOpenedChanged: if (opened) {
+    cursorActive = false;
+    row = "actions";
+    col = 0;
+  }
 
   ShellIpc {
     target: "jg.pomodoro"
 
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function show(): void { root.open() }
-    function hide(): void { root.close() }
-    function toggle(): void { root.toggle() }
-    function start(): void { root.startTimer() }
-    function pause(): void { root.pauseTimer() }
-    function toggleTimer(): void { root.toggleTimer() }
-    function reset(): void { root.resetTimer() }
-    function skip(): void { root.skipPhase() }
-    function stop(): void { root.stopPhase() }
-    function extend(): void { root.extendPhase() }
-    function hideBreakScreen(): void { root.hideBreakScreen() }
-    function resetCount(): void { root.resetCount() }
-    function chime(): void { root.playChime() }
+    function open(): void {
+      root.open();
+    }
+    function close(): void {
+      root.close();
+    }
+    function show(): void {
+      root.open();
+    }
+    function hide(): void {
+      root.close();
+    }
+    function toggle(): void {
+      root.toggle();
+    }
+    function start(): void {
+      root.startTimer();
+    }
+    function pause(): void {
+      root.pauseTimer();
+    }
+    function toggleTimer(): void {
+      root.toggleTimer();
+    }
+    function reset(): void {
+      root.resetTimer();
+    }
+    function skip(): void {
+      root.skipPhase();
+    }
+    function stop(): void {
+      root.stopPhase();
+    }
+    function extend(): void {
+      root.extendPhase();
+    }
+    function hideBreakScreen(): void {
+      root.hideBreakScreen();
+    }
+    function resetCount(): void {
+      root.resetCount();
+    }
+    function chime(): void {
+      root.playChime();
+    }
     // Testing: fake the lock state ("locked", "unlocked", "off"), run a lock
     // check now, and end the current phase now.
-    function simulateLock(value: string): void { root.simulateLock(value) }
-    function checkLock(): void { root.checkLock() }
-    function finishPhase(): void { root.finishPhase() }
-    function status(): string { return root.service ? root.service.statusText() : "{}" }
+    function simulateLock(value: string): void {
+      root.simulateLock(value);
+    }
+    function checkLock(): void {
+      root.checkLock();
+    }
+    function finishPhase(): void {
+      root.finishPhase();
+    }
+    function status(): string {
+      return root.service ? root.service.statusText() : "{}";
+    }
   }
 
   implicitWidth: button.implicitWidth
@@ -183,10 +288,13 @@ Panel {
     dimmed: root.paused
     tooltipText: Model.plainText(root.tooltip)
 
-    onPressed: (b) => {
-      if (b === Qt.RightButton) root.toggleTimer()
-      else if (b === Qt.MiddleButton) root.skipPhase()
-      else root.toggle()
+    onPressed: b => {
+      if (b === Qt.RightButton)
+        root.toggleTimer();
+      else if (b === Qt.MiddleButton)
+        root.skipPhase();
+      else
+        root.toggle();
     }
 
     Column {
@@ -236,7 +344,10 @@ Panel {
         selected: String(modelData) === chipRow.current
         hasCursor: root.cursorActive && root.row === chipRow.rowName && root.col === index
         onClicked: chipRow.picked(index)
-        onHovered: (h) => { if (h) root.placeCursor(chipRow.rowName, index) }
+        onHovered: h => {
+          if (h)
+            root.placeCursor(chipRow.rowName, index);
+        }
       }
     }
   }
@@ -258,7 +369,7 @@ Panel {
       onMoveRequested: (dx, dy) => root.moveCursor(dx, dy)
       onActivateRequested: root.activateCursor()
       onCloseRequested: root.close()
-      onTabRequested: (direction) => root.switchPanel(direction)
+      onTabRequested: direction => root.switchPanel(direction)
       onTextKey: (text, modifiers) => root.handleTextKey(text)
 
       Column {
@@ -339,8 +450,18 @@ Panel {
             opacity: root.paused ? 0.5 : 1
             width: Math.max(track.height, track.width * root.progress)
 
-            Behavior on width { NumberAnimation { duration: Style.duration(280); easing.type: Easing.OutCubic } }
-            Behavior on opacity { NumberAnimation { duration: Style.duration(180); easing.type: Easing.OutCubic } }
+            Behavior on width {
+              NumberAnimation {
+                duration: Style.duration(280)
+                easing.type: Easing.OutCubic
+              }
+            }
+            Behavior on opacity {
+              NumberAnimation {
+                duration: Style.duration(180)
+                easing.type: Easing.OutCubic
+              }
+            }
           }
         }
 
@@ -373,7 +494,10 @@ Panel {
             active: root.running
             hasCursor: root.cursorActive && root.row === "actions" && root.col === 0
             onClicked: root.toggleTimer()
-            onHovered: (h) => { if (h) root.placeCursor("actions", 0) }
+            onHovered: h => {
+              if (h)
+                root.placeCursor("actions", 0);
+            }
           }
 
           Button {
@@ -386,7 +510,10 @@ Panel {
             bordered: true
             hasCursor: root.cursorActive && root.row === "actions" && root.col === 1
             onClicked: root.resetTimer()
-            onHovered: (h) => { if (h) root.placeCursor("actions", 1) }
+            onHovered: h => {
+              if (h)
+                root.placeCursor("actions", 1);
+            }
           }
 
           Button {
@@ -399,7 +526,10 @@ Panel {
             bordered: true
             hasCursor: root.cursorActive && root.row === "actions" && root.col === 2
             onClicked: root.skipPhase()
-            onHovered: (h) => { if (h) root.placeCursor("actions", 2) }
+            onHovered: h => {
+              if (h)
+                root.placeCursor("actions", 2);
+            }
           }
         }
 
@@ -414,7 +544,9 @@ Panel {
         }
 
         // ---------- Focus length ----------
-        PanelSeparator { foreground: root.bar.foreground }
+        PanelSeparator {
+          foreground: root.bar.foreground
+        }
 
         PanelSectionHeader {
           text: strings.t("section.focus")
@@ -425,9 +557,9 @@ Panel {
         ChipRow {
           rowName: "focus"
           values: root.focusOptions
-          labels: root.focusOptions.map((m) => Commons.I18n.formatNumber(m))
+          labels: root.focusOptions.map(m => Commons.I18n.formatNumber(m))
           current: String(root.cfg.focusMinutes)
-          onPicked: (index) => root.updateSetting("focusMinutes", root.focusOptions[index])
+          onPicked: index => root.updateSetting("focusMinutes", root.focusOptions[index])
         }
 
         Text {
@@ -450,13 +582,15 @@ Panel {
         ChipRow {
           rowName: "break"
           values: root.breakOptions
-          labels: root.breakOptions.map((v) => root.breakLabel(v))
+          labels: root.breakOptions.map(v => root.breakLabel(v))
           current: root.cfg.breakLength
-          onPicked: (index) => root.updateSetting("breakLength", root.breakOptions[index])
+          onPicked: index => root.updateSetting("breakLength", root.breakOptions[index])
         }
 
         // ---------- Behavior ----------
-        PanelSeparator { foreground: root.bar.foreground }
+        PanelSeparator {
+          foreground: root.bar.foreground
+        }
 
         PanelSectionHeader {
           text: strings.t("section.behavior")
@@ -480,7 +614,10 @@ Panel {
               fontFamily: root.bar.fontFamily
               checked: root.cfg[modelData] === true
               hasCursor: root.cursorActive && root.row === modelData
-              onHovered: (h) => { if (h) root.placeCursor(modelData, 0) }
+              onHovered: h => {
+                if (h)
+                  root.placeCursor(modelData, 0);
+              }
               onClicked: root.updateSetting(modelData, !root.cfg[modelData])
             }
           }
