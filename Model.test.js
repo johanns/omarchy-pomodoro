@@ -35,6 +35,13 @@ const names = [
 	"skipStartsNext",
 	"parseLockAnswer",
 	"parseLockOverride",
+	"playersToPause",
+	"playersToResume",
+	"mediaOnBreakScreen",
+	"validMediaPaused",
+	"mergeMediaPaused",
+	"mediaOnBreakEnd",
+	"keepMediaRecord",
 ];
 const M = {};
 vm.runInNewContext(
@@ -99,6 +106,7 @@ test("settings: new keys with defaults, obsolete keys ignored", () => {
 		chime: true,
 		breakScreen: true,
 		pauseWhenLocked: true,
+		pauseMedia: false,
 	});
 	same(Model.normalizeSettings(null), {
 		focusMinutes: 25,
@@ -107,6 +115,7 @@ test("settings: new keys with defaults, obsolete keys ignored", () => {
 		chime: false,
 		breakScreen: false,
 		pauseWhenLocked: true,
+		pauseMedia: false,
 	});
 	same(
 		Model.normalizeSettings({ breakLength: "<b>x</b>" }).breakLength,
@@ -211,6 +220,7 @@ test("state v2 round-trips, keeps the duration, and a running timer keeps its en
 		remainingMs: 60000,
 		completedFocus: 2,
 		lockHeld: false,
+		mediaPaused: [],
 	});
 	const expired = Model.parseState(raw, s, now + 500000);
 	assert.equal(expired.running, true);
@@ -236,6 +246,7 @@ test("state v1 migrates: break phases merge, duration comes from settings", () =
 		remainingMs: 2 * MIN,
 		completedFocus: 3,
 		lockHeld: false,
+		mediaPaused: [],
 	});
 	const v1focus = JSON.stringify({
 		version: 1,
@@ -328,6 +339,7 @@ test("state parsing rejects garbage and bounds values", () => {
 		remainingMs: 25 * MIN,
 		completedFocus: 0,
 		lockHeld: false,
+		mediaPaused: [],
 	});
 	same(Model.parseState("not json", s, 0), fresh);
 	same(Model.parseState('{"version":2,"phase":"<b>x</b>"}', s, 0), fresh);
@@ -488,6 +500,7 @@ test("state: a lock hold round-trips; a 1.1.0 file and invalid holds read as not
 		remainingMs: 12 * MIN,
 		completedFocus: 2,
 		lockHeld: true,
+		mediaPaused: [],
 	});
 	// written by 1.1.0: no lockHeld field
 	const old = JSON.stringify({
@@ -508,6 +521,7 @@ test("state: a lock hold round-trips; a 1.1.0 file and invalid holds read as not
 		remainingMs: 25 * MIN,
 		completedFocus: 4,
 		lockHeld: false,
+		mediaPaused: [],
 	});
 	// a hold only means something on a focus phase that is not running
 	const onBreak = JSON.stringify({
@@ -557,6 +571,201 @@ test("state: a lock hold round-trips; a 1.1.0 file and invalid holds read as not
 		).lockHeld,
 		false,
 	);
+});
+
+const BRAVE = "org.mpris.MediaPlayer2.brave.instance3997782";
+const SPOTIFY = "org.mpris.MediaPlayer2.spotify";
+const player = (dbusName, fields) =>
+	Object.assign(
+		{
+			dbusName,
+			isPlaying: false,
+			canPause: true,
+			canPlay: true,
+			canTogglePlaying: true,
+		},
+		fields,
+	);
+
+test("settings: pauseMedia defaults to off; only true turns it on", () => {
+	assert.equal(Model.normalizeSettings({}).pauseMedia, false);
+	assert.equal(Model.normalizeSettings(null).pauseMedia, false);
+	assert.equal(Model.normalizeSettings({ pauseMedia: "x" }).pauseMedia, false);
+	assert.equal(Model.normalizeSettings({ pauseMedia: true }).pauseMedia, true);
+	assert.equal(
+		Model.normalizeSettings({ pauseMedia: "true" }).pauseMedia,
+		true,
+	);
+	assert.equal(
+		Model.normalizeSettings({ pauseMedia: false }).pauseMedia,
+		false,
+	);
+});
+
+test("media: every playing player that can pause is paused", () => {
+	same(
+		Model.playersToPause([
+			player(BRAVE, { isPlaying: true }),
+			player(SPOTIFY, { isPlaying: true, canPause: false }),
+			player("org.mpris.MediaPlayer2.vlc", { isPlaying: false }),
+			player("org.mpris.MediaPlayer2.mpv", {
+				isPlaying: true,
+				canPause: false,
+				canTogglePlaying: false,
+			}),
+			player("", { isPlaying: true }),
+			player("not.a.media.player", { isPlaying: true }),
+			null,
+		]),
+		[BRAVE, SPOTIFY],
+	);
+	same(Model.playersToPause([]), []);
+	same(Model.playersToPause(null), []);
+});
+
+test("media: only recorded players that are stopped and can play resume", () => {
+	const players = [
+		player(BRAVE),
+		player(SPOTIFY, { isPlaying: true }),
+		player("org.mpris.MediaPlayer2.vlc"),
+		player("org.mpris.MediaPlayer2.mpv", {
+			canPlay: false,
+			canTogglePlaying: false,
+		}),
+	];
+	same(
+		Model.playersToResume(
+			[
+				BRAVE,
+				SPOTIFY,
+				"org.mpris.MediaPlayer2.mpv",
+				"org.mpris.MediaPlayer2.gone",
+			],
+			players,
+		).map((p) => p.dbusName),
+		[BRAVE],
+	);
+	same(
+		Model.playersToResume(
+			[SPOTIFY],
+			[player(SPOTIFY, { canPlay: false, canTogglePlaying: true })],
+		).map((p) => p.dbusName),
+		[SPOTIFY],
+	);
+	same(Model.playersToResume([], players), []);
+	same(Model.playersToResume([BRAVE], null), []);
+});
+
+test("media: the break screen appearing pauses; going away resumes or waits for the lock read", () => {
+	const on = Model.normalizeSettings({ pauseMedia: true });
+	const off = Model.normalizeSettings({});
+	const onNoLock = Model.normalizeSettings({
+		pauseMedia: true,
+		pauseWhenLocked: false,
+	});
+	assert.equal(Model.mediaOnBreakScreen(true, on, false), "pause");
+	assert.equal(Model.mediaOnBreakScreen(true, off, false), "none");
+	// Esc, Skip, Reset: resume, also when the toggle went off during the break
+	assert.equal(Model.mediaOnBreakScreen(false, on, false), "resume");
+	assert.equal(Model.mediaOnBreakScreen(false, off, false), "resume");
+	// the break ran out: with "Pause when locked" on, the lock read decides
+	assert.equal(Model.mediaOnBreakScreen(false, on, true), "wait");
+	assert.equal(Model.mediaOnBreakScreen(false, onNoLock, true), "resume");
+	// a new break screen while an earlier break-end read is still out
+	assert.equal(Model.mediaOnBreakScreen(true, on, true), "pause");
+});
+
+test("media record: only MPRIS bus names, no duplicates, bounded", () => {
+	same(Model.validMediaPaused([BRAVE, SPOTIFY, BRAVE]), [BRAVE, SPOTIFY]);
+	same(Model.validMediaPaused([BRAVE, 7, null, "rm -rf /", "", { a: 1 }]), [
+		BRAVE,
+	]);
+	same(Model.validMediaPaused("org.mpris.MediaPlayer2.x"), []);
+	same(Model.validMediaPaused(undefined), []);
+	same(
+		Model.validMediaPaused([`org.mpris.MediaPlayer2.${"x".repeat(300)}`]),
+		[],
+	);
+	const many = Array.from(
+		{ length: 40 },
+		(_, i) => `org.mpris.MediaPlayer2.p${i}`,
+	);
+	assert.equal(Model.validMediaPaused(many).length, 16);
+	same(Model.mergeMediaPaused([BRAVE], [SPOTIFY, BRAVE]), [BRAVE, SPOTIFY]);
+	same(Model.mergeMediaPaused(null, [BRAVE]), [BRAVE]);
+	// a full record keeps its names; a new one past the cap is not recorded
+	const full = many.slice(0, 16);
+	same(Model.mergeMediaPaused(full, [BRAVE]), full);
+	same(Model.validMediaPaused(["org.mpris.MediaPlayer2."]), []);
+});
+
+test("media: the break-end lock read clears the record when locked, resumes it otherwise", () => {
+	const lockOn = Model.normalizeSettings({ pauseWhenLocked: true });
+	const lockOff = Model.normalizeSettings({ pauseWhenLocked: false });
+	assert.equal(Model.mediaOnBreakEnd(true, lockOn), "clear");
+	assert.equal(Model.mediaOnBreakEnd(false, lockOn), "resume");
+	assert.equal(Model.mediaOnBreakEnd(null, lockOn), "resume");
+	assert.equal(Model.mediaOnBreakEnd(true, lockOff), "resume");
+});
+
+test("media record on restore: kept only while the break is still running or paused", () => {
+	assert.equal(Model.keepMediaRecord("break", true), true);
+	assert.equal(Model.keepMediaRecord("break", false), false);
+	assert.equal(Model.keepMediaRecord("focus", true), false);
+	assert.equal(Model.keepMediaRecord("focus", false), false);
+});
+
+test("state: the media record round-trips; a 1.2.0 file and garbage read as empty", () => {
+	const s = Model.normalizeSettings({});
+	const now = 1_700_000_000_000;
+	const saved = Model.serializeState(
+		{
+			phase: "break",
+			running: true,
+			endsAt: now + 3 * MIN,
+			durationMs: 5 * MIN,
+			remainingMs: 3 * MIN,
+			completedFocus: 1,
+			lockHeld: false,
+			mediaPaused: [BRAVE, "junk"],
+		},
+		now,
+	);
+	assert.equal(JSON.parse(saved).version, 2);
+	same(JSON.parse(saved).mediaPaused, [BRAVE]);
+	same(Model.parseState(saved, s, now).mediaPaused, [BRAVE]);
+	// written by 1.2.0: no mediaPaused field
+	const old = JSON.stringify({
+		version: 2,
+		phase: "break",
+		running: false,
+		endsAt: 0,
+		durationMs: 5 * MIN,
+		remainingMs: 2 * MIN,
+		completedFocus: 1,
+		lockHeld: false,
+		savedAt: now,
+	});
+	same(Model.parseState(old, s, now).mediaPaused, []);
+	const bad = JSON.stringify(
+		Object.assign(JSON.parse(old), { mediaPaused: { 0: BRAVE } }),
+	);
+	same(Model.parseState(bad, s, now).mediaPaused, []);
+	same(Model.initialState(s).mediaPaused, []);
+	// a state without a record serializes an empty one
+	const plain = Model.serializeState(
+		{
+			phase: "focus",
+			running: false,
+			endsAt: 0,
+			durationMs: 25 * MIN,
+			remainingMs: 25 * MIN,
+			completedFocus: 0,
+			lockHeld: false,
+		},
+		now,
+	);
+	same(JSON.parse(plain).mediaPaused, []);
 });
 
 test("plainText neutralizes markup headed for shared sinks", () => {

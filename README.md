@@ -5,8 +5,8 @@ Plugin id: `jg.pomodoro`. A focus/break countdown in the bar with a control pane
 Focus sessions of 15, 25, 50 or 90 minutes, breaks of 5 (short) or 15 (long)
 minutes, picked with one tap in the panel. Each finished phase starts the next one.
 When a session ends the plugin can send a desktop notification, play a chime, and
-cover every monitor with a break screen. While the session is locked, focus time
-pauses.
+cover every monitor with a break screen, pausing any media that plays under it.
+While the session is locked, focus time pauses.
 
 ## Install
 
@@ -114,7 +114,35 @@ omarchy-shell jg.pomodoro finishPhase            # end the current phase as if i
 The simulated state is not saved; a shell restart returns to the real lock state.
 `status` reports it as `simulatedLock`. `python3 tests/lock-trials.py` runs every
 case through these methods and reports pass or fail; it changes the live timer and
-saves the state file first.
+saves the state file first. Turn Pause media off before running it, or it pauses
+your media, and the locked case leaves it paused.
+
+## Pause media
+
+With the Pause media toggle on, every media player that is playing (any MPRIS
+player: browsers, Spotify, mpv, and so on) pauses when the break screen appears.
+It needs the Break screen toggle on as well; without the break screen nothing is
+paused.
+
+When the break screen goes away, the players the plugin paused resume. That covers
+the break running out, Esc or a click on the backdrop, Skip, Reset, and turning the
+Break screen toggle off. A player you started again yourself, or one that has quit,
+is left alone. Players the plugin did not pause are never touched.
+
+With "Pause when locked" on, a break that runs out while the session is locked
+resumes nothing: the players stay paused for you to start. Unlocking does not
+resume them either.
+
+The paused players are saved with the timer state, so a shell restart during a
+break still resumes them when the break screen goes away. If the break ended while
+the shell was down, they stay paused. For three seconds after the shell starts,
+media is left alone while the player list and settings load. A player that starts
+while the break screen is already up is not paused. Players are recorded by bus
+name; after a reboot during a paused break, a player that registers the same name
+(for example Spotify) is resumed when that break screen goes away.
+
+`status` reports the toggle as `pauseMedia` and the paused players' bus names as
+`mediaPaused`.
 
 ## IPC
 
@@ -157,6 +185,7 @@ panel. Values outside the bounds are clamped.
 | `chime`           | false   |                                                    |
 | `breakScreen`     | false   |                                                    |
 | `pauseWhenLocked` | true    |                                                    |
+| `pauseMedia`      | false   |                                                    |
 
 Keys from version 1.0 (`shortBreakMinutes`, `longBreakMinutes`,
 `sessionsBeforeLongBreak`, `autoStartBreaks`, `autoStartFocus`) are ignored. A

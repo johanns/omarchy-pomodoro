@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Mpris
 import qs.Commons as Commons
 import "Model.js" as Model
 
@@ -43,6 +44,29 @@ Item {
   // true or false replaces every lock read with that answer; null reads the
   // real lock state.
   property var lockOverride: null
+  // Bus names of the media players this plugin paused when the break screen
+  // appeared; they resume when it goes away. Saved with the timer state.
+  property var mediaPaused: []
+  // The break ran out with "Pause when locked" on: the break-end lock read
+  // decides whether the recorded players resume (unlocked) or are dropped.
+  property bool mediaAwaitsLock: false
+  // False until a few seconds after restore(): the bar widget pushes the
+  // settings and Quickshell loads each player's properties (CanPlay,
+  // PlaybackStatus) only after the service starts, and a resume before that
+  // finds no player it can resume.
+  property bool mediaReady: false
+  // Set by the first settings push from the bar widget; until then cfg
+  // holds defaults (Break screen off), which would read as "screen gone".
+  property bool settingsPushed: false
+  // The break screen state media was last paused or resumed for. Phase
+  // changes flip breakScreenShown more than once inside one call, so media
+  // acts on the settled value at the end of the event, compared with this.
+  property bool mediaShown: false
+  // Bound at load: Quickshell fills the player list a moment after the
+  // first read, so a one-off read when the break screen appears could
+  // find it empty. The list is a Qt sequence, not a JS Array; slice copies
+  // it into one for Model.js.
+  readonly property var mediaPlayers: Mpris.players ? Array.prototype.slice.call(Mpris.players.values) : []
 
   readonly property bool paused: !running && remainingMs < durationMs
   readonly property bool engaged: running || paused
@@ -157,6 +181,75 @@ Item {
     persist();
   }
 
+  // The break screen is the trigger, not the break: a playing video under it
+  // cannot be seen.
+  function syncMedia() {
+    if (mediaReady)
+      Qt.callLater(applyMedia);
+  }
+
+  function applyMedia() {
+    const shown = breakScreenShown;
+    if (shown === mediaShown)
+      return;
+    mediaShown = shown;
+    // A new break screen takes over a record still waiting for an earlier
+    // break-end lock read; that read no longer decides anything.
+    if (shown)
+      mediaAwaitsLock = false;
+    const action = Model.mediaOnBreakScreen(shown, cfg, mediaAwaitsLock);
+    if (action === "pause")
+      pauseMedia();
+    else if (action === "resume")
+      resumeMedia();
+  }
+
+  // Only players that fit in the record are paused, so every paused player
+  // can be resumed.
+  function pauseMedia() {
+    const merged = Model.mergeMediaPaused(mediaPaused, Model.playersToPause(mediaPlayers));
+    const names = merged.filter(n => mediaPaused.indexOf(n) === -1);
+    if (names.length === 0)
+      return;
+    for (const p of mediaPlayers) {
+      if (!p || names.indexOf(p.dbusName) === -1)
+        continue;
+      if (p.canPause)
+        p.pause();
+      else
+        p.togglePlaying();
+    }
+    mediaPaused = merged;
+    console.log("jg.pomodoro: paused media " + names.join(", "));
+    saveState();
+  }
+
+  // Before mediaReady the players' properties may not be loaded, and a
+  // resume would find nothing to resume and drop the record; the record is
+  // kept and resumed once media is ready.
+  function resumeMedia() {
+    if (!mediaReady || mediaPaused.length === 0)
+      return;
+    const players = Model.playersToResume(mediaPaused, mediaPlayers);
+    for (const p of players) {
+      if (p.canPlay)
+        p.play();
+      else
+        p.togglePlaying();
+    }
+    console.log("jg.pomodoro: resumed media " + players.map(p => p.dbusName).join(", "));
+    mediaPaused = [];
+    saveState();
+  }
+
+  function clearMedia() {
+    if (mediaPaused.length === 0)
+      return;
+    console.log("jg.pomodoro: media left paused " + mediaPaused.join(", "));
+    mediaPaused = [];
+    saveState();
+  }
+
   function tick() {
     if (!running)
       return;
@@ -182,6 +275,8 @@ Item {
       notifyCompleted(finished, next.phase);
     if (Model.shouldChime(cfg))
       chime();
+    if (Model.isBreak(finished))
+      mediaAwaitsLock = cfg.pauseWhenLocked;
     enterPhase(next.phase, next.completedFocus);
     if (Model.isBreak(finished) && cfg.pauseWhenLocked) {
       lockHeld = true;
@@ -203,12 +298,19 @@ Item {
     return locked;
   }
 
+  // The media decision does not depend on the epoch: whatever the owner did
+  // since, the read still says whether the break ended on the lock screen.
   function handleBreakEndRead(epoch, locked) {
-    if (epoch !== stateEpoch)
+    const holds = Model.breakEndHolds(locked, cfg);
+    if (epoch === stateEpoch && !holds)
+      start();
+    if (!mediaAwaitsLock)
       return;
-    if (Model.breakEndHolds(locked, cfg))
-      return;
-    start();
+    mediaAwaitsLock = false;
+    if (Model.mediaOnBreakEnd(locked, cfg) === "clear")
+      clearMedia();
+    else
+      resumeMedia();
   }
 
   function handleLockCheck(epoch, locked) {
@@ -277,6 +379,8 @@ Item {
       breakScreenShown: breakScreenShown,
       pauseWhenLocked: cfg.pauseWhenLocked,
       lockHeld: lockHeld,
+      pauseMedia: cfg.pauseMedia,
+      mediaPaused: mediaPaused,
       simulatedLock: lockOverride === null ? "off" : (lockOverride ? "locked" : "unlocked")
     });
   }
@@ -284,6 +388,12 @@ Item {
   // Every state change a lock read could be stale against goes through here.
   function persist() {
     stateEpoch += 1;
+    saveState();
+  }
+
+  // The media record is saved without moving the epoch: a lock read is not
+  // stale against it.
+  function saveState() {
     if (!restored)
       return;
     stateFile.setText(Model.serializeState({
@@ -293,7 +403,8 @@ Item {
       durationMs: durationMs,
       remainingMs: running ? Math.max(0, Math.round(endsAt - Date.now())) : remainingMs,
       completedFocus: completedFocus,
-      lockHeld: lockHeld
+      lockHeld: lockHeld,
+      mediaPaused: mediaPaused
     }, Date.now()) + "\n");
   }
 
@@ -306,9 +417,14 @@ Item {
     durationMs = state.durationMs;
     remainingMs = state.remainingMs;
     lockHeld = state.lockHeld;
+    mediaPaused = state.mediaPaused;
     restored = true;
     if (running)
       tick();
+    // A break that ended while the shell was down leaves its players paused.
+    if (!Model.keepMediaRecord(phase, engaged))
+      clearMedia();
+    mediaStartup.start();
     // A hold carried over a restart waits for the first periodic check, a
     // minute in: during shell startup the lock service may not answer yet,
     // or may not have recovered a lock that outlived the old shell, and an
@@ -327,6 +443,31 @@ Item {
       return;
     durationMs = Model.phaseDurationMs(phase, cfg);
     remainingMs = durationMs;
+  }
+
+  onBreakScreenShownChanged: syncMedia()
+
+  Timer {
+    id: mediaStartup
+    interval: 3000
+    onTriggered: root.startMedia()
+  }
+
+  onSettingsChanged: {
+    settingsPushed = true;
+    startMedia();
+  }
+
+  // Media reacts once the startup wait is over and the settings are in.
+  // The baseline makes the first sync act: a break screen that is up pauses
+  // what plays now and merges it into a restored record; a restored record
+  // with no break screen up resumes.
+  function startMedia() {
+    if (mediaReady || !restored || !settingsPushed || mediaStartup.running)
+      return;
+    mediaReady = true;
+    mediaShown = !breakScreenShown && mediaPaused.length > 0;
+    syncMedia();
   }
 
   Timer {

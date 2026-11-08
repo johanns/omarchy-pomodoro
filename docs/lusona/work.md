@@ -10,10 +10,11 @@ execution capacity while retaining their actual state and blocker. Completion re
 
 ## Active queue
 
-| Item / change                                                                                           | State | Completion condition                                                                | Current blocker or next action              |
-| ------------------------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------- | ------------------------------------------- |
-| [Pause focus while locked; Skip on a break starts focus](specs/20261106-hold-focus-until-return.md)     | Done  | AC1–AC16 met, tests green, simulated trials passed, owner accepted, pushed          | Delivered 2026-11-07 as 4fd784e and 9aa52d9 |
-| [Preset durations, break choice, and break screen](specs/20261104-preset-durations-and-break-screen.md) | Done  | AC1–AC14 met, tests green, inspected on the owner's desktop, owner accepted, pushed | Delivered 2026-11-04 as 9061f23 and 297d3ed |
+| Item / change                                                                                           | State  | Completion condition                                                                | Current blocker or next action              |
+| ------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------- | ------------------------------------------- |
+| [Pause media while the break screen is up](specs/20261107-pause-media-under-break-screen.md)            | Review | AC1–AC9 met, tests green, live trial, independent review, owner accepted            | Owner acceptance                            |
+| [Pause focus while locked; Skip on a break starts focus](specs/20261106-hold-focus-until-return.md)     | Done   | AC1–AC16 met, tests green, simulated trials passed, owner accepted, pushed          | Delivered 2026-11-07 as 4fd784e and 9aa52d9 |
+| [Preset durations, break choice, and break screen](specs/20261104-preset-durations-and-break-screen.md) | Done   | AC1–AC14 met, tests green, inspected on the owner's desktop, owner accepted, pushed | Delivered 2026-11-04 as 9061f23 and 297d3ed |
 
 ## Icebox
 

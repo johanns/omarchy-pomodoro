@@ -15,6 +15,12 @@ const MAX_COMPLETED = 100000;
 
 const STATE_VERSION = 2;
 
+// Players are recorded by MPRIS bus name; a saved record holds at most
+// MAX_MEDIA of them.
+const MPRIS_PREFIX = "org.mpris.MediaPlayer2.";
+const MAX_MEDIA_NAME = 255;
+const MAX_MEDIA = 16;
+
 // Any number snaps to the closest preset, a tie to the lower one (20 -> 15,
 // 70 -> 50); anything else is the default.
 function nearestPreset(value) {
@@ -75,6 +81,7 @@ function normalizeSettings(raw) {
 		chime: asBool(s.chime, false),
 		breakScreen: asBool(s.breakScreen, false),
 		pauseWhenLocked: asBool(s.pauseWhenLocked, true),
+		pauseMedia: asBool(s.pauseMedia, false),
 	};
 }
 
@@ -192,6 +199,96 @@ const shouldShowBreakScreen = (phase, engaged, settings, hiddenForBreak) =>
 	settings.breakScreen === true &&
 	hiddenForBreak !== true;
 
+const isMediaName = (name) =>
+	typeof name === "string" &&
+	name.length > MPRIS_PREFIX.length &&
+	name.length <= MAX_MEDIA_NAME &&
+	name.startsWith(MPRIS_PREFIX);
+
+// A record of paused players read from the state file: bus names only, no
+// duplicates, at most MAX_MEDIA. Anything else reads as empty.
+function validMediaPaused(value) {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+	const names = [];
+	for (const name of value) {
+		if (names.length === MAX_MEDIA) {
+			break;
+		}
+		if (isMediaName(name) && !names.includes(name)) {
+			names.push(name);
+		}
+	}
+	return names;
+}
+
+const mergeMediaPaused = (recorded, names) =>
+	validMediaPaused(
+		(Array.isArray(recorded) ? recorded : []).concat(
+			Array.isArray(names) ? names : [],
+		),
+	);
+
+// The bus names of the players to pause when the break screen appears:
+// every one that is playing and can pause or toggle.
+function playersToPause(players) {
+	if (!Array.isArray(players)) {
+		return [];
+	}
+	return players
+		.filter(
+			(p) =>
+				p &&
+				p.isPlaying === true &&
+				(p.canPause === true || p.canTogglePlaying === true) &&
+				isMediaName(p.dbusName),
+		)
+		.map((p) => p.dbusName);
+}
+
+// The players to resume when the break screen goes away: those in the
+// record that still exist, are not playing, and can play or toggle. A
+// player the owner restarted during the break is left alone.
+function playersToResume(recorded, players) {
+	if (!Array.isArray(players)) {
+		return [];
+	}
+	const names = validMediaPaused(recorded);
+	return players.filter(
+		(p) =>
+			p &&
+			names.includes(p.dbusName) &&
+			p.isPlaying !== true &&
+			(p.canPlay === true || p.canTogglePlaying === true),
+	);
+}
+
+// What happens to media when the break screen appears (`shown` true) or
+// goes away. "pause" with the toggle on; "resume" the recorded players,
+// whatever the toggle, since the plugin paused them; "wait" when the break
+// ran out with "Pause when locked" on, so the break-end lock read decides:
+// locked clears the record, unlocked resumes it.
+function mediaOnBreakScreen(shown, settings, breakRanOut) {
+	if (shown) {
+		return settings.pauseMedia === true ? "pause" : "none";
+	}
+	return breakRanOut === true && settings.pauseWhenLocked === true
+		? "wait"
+		: "resume";
+}
+
+// The break-end lock read settles a record that waited for it: a break
+// that ran out on the lock screen leaves the players for the owner to
+// start ("clear"); otherwise they resume.
+const mediaOnBreakEnd = (locked, settings) =>
+	breakEndHolds(locked, settings) ? "clear" : "resume";
+
+// A saved record means something only while its break is still running or
+// paused; a break that ended while the shell was down leaves the players
+// paused.
+const keepMediaRecord = (phase, engaged) => isBreak(phase) && engaged === true;
+
 // Seconds still to go, rounded up so the display never shows 00:00 while
 // time remains.
 const remainingSeconds = (ms) =>
@@ -236,6 +333,7 @@ const initialState = (settings) => ({
 	remainingMs: phaseDurationMs("focus", settings),
 	completedFocus: 0,
 	lockHeld: false,
+	mediaPaused: [],
 });
 
 function serializeState(state, now) {
@@ -248,6 +346,7 @@ function serializeState(state, now) {
 		remainingMs: Math.round(state.remainingMs),
 		completedFocus: state.completedFocus,
 		lockHeld: validLockHeld(state.phase, state.running, state.lockHeld),
+		mediaPaused: validMediaPaused(state.mediaPaused),
 		savedAt: Math.round(now),
 	});
 }
@@ -303,6 +402,8 @@ function parseState(raw, settings, now) {
 		completedFocus: clampInt(data.completedFocus, 0, MAX_COMPLETED, 0),
 		// Files from 1.1.0 have no lockHeld field and read as not held.
 		lockHeld: validLockHeld(data.phase, data.running === true, data.lockHeld),
+		// Files from 1.2.0 have no mediaPaused field and read as empty.
+		mediaPaused: validMediaPaused(data.mediaPaused),
 	};
 	if (state.running) {
 		const endsAt = Number(data.endsAt);
